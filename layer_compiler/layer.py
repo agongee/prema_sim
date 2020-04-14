@@ -1,19 +1,16 @@
-from enum import Enum
-
-class Type(Enum):
-    FC = 1
-    ACTV = 2
-    POOL = 3
-    CONV = 4
-    DEPTH = 5
-    SEPAR = 6
-    RECR = 7
-    LSTM = 8
-
+from enum_def import Type
 
 class Layer:
-    def __init__(self, layer_type, in_dim=None, out_dim=None, h_dim=None, w_dim=None, act_type=None):
+    def __init__(self, layer_type, batch=1, in_dim=None, out_dim=None, h_dim=None, window_dim=None, act_type=None):
         self.layer_type = layer_type
+        self.batch = batch
+        
+        self.in_dim = None
+        self.out_dim = None
+        self.window_dim = None
+        self.h_dim = None
+        self.act_type = None
+
         if layer_type == Type.FC :
             if all((in_dim, out_dim)):
                 self.in_dim = in_dim
@@ -27,9 +24,9 @@ class Layer:
             else:
                 print("Missing Argument!")
         elif layer_type == Type.POOL:
-            if all((in_dim, w_dim)):
+            if all((in_dim, window_dim)):
                 self.in_dim = in_dim
-                self.w_dim = w_dim
+                self.window_dim = window_dim
             else:
                 print("Missing Argument!")
         elif layer_type == Type.RECR:
@@ -72,7 +69,7 @@ class Layer:
         elif self.layer_type == Type.ACTV:
             return f"ACTV: In({self.in_dim}), Type({self.act_type})"
         elif self.layer_type == Type.POOL:
-            return f"POOL: In({self.in_dim}), Window({self.w_dim})"
+            return f"POOL: In({self.in_dim}), Window({self.window_dim})"
         elif self.layer_type == Type.RECR:
             return f"RECR: In({self.in_dim}), Hidden({self.h_dim}), Out({self.out_dim})"
         elif self.layer_type == Type.LSTM:
