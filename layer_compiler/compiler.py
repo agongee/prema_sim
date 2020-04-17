@@ -136,6 +136,13 @@ class Inst:
         self.inst_type = inst_type
         self.done = False
         self.depend = []
+
+        self.size = None
+        self.base = None
+        self.buf = None
+        self.M = None
+        self.N = None
+        self.K = None
         
         if depend != None:
             self.depend.extend(depend)
@@ -167,19 +174,78 @@ class Inst:
             if all()
         '''
 
+    def fetchable(self):
+        return all(self.depend)
+
+    def __bool__(self):
+        return self.done
+
+
 # PCB for the given NN
 class NN:
-    def __init__(self, inst, priority, layer_type, nnid):
+    def __init__(self, priority, nnid, mmunit, dispatch_time):
         self.inst = []
+        self.container = None
         self.inst.extend(inst)
         self.priority = priority
-        self.layer_type = layer_type
+        self.token = 0
+        if self.priority == 0:
+            self.token = 1
+        elif self.priority == 1:
+            self.token = 3
+        elif self.priority == 2:
+            self.token = 9
         self.nnid = nnid
+        self.mmunit = mmunit
         self.pc = 0
+        self.done = False
+        self.running = False
+        self.dispatch = False
+        self.dispatch_time = dispatch_time
+        self.estimated = -0
+        self.waited = 0
+        self.runned = 0
+        self.remaining = 0
 
-        self.estimated = None
+    def container_to_inst(self, container: Container):
+        self.container = container
+        for i in container:
+            self.inst.extend(compile(i, self.mmunit))
+        self.estimated = self.container.estimate(self.mmunit.height, self.mmunit.width, self.mmunit.depth)
 
+    def fetch1(self):
+        return self.inst[self.pc]
 
+    def fetch2(self):
+        temp_pc = self.pc
+        self.pc += 1
+        if self.pc >= len(self.inst):
+            self.done = True
+        return self.inst[temp_pc]
 
+    def dispatch(self):
+        if self.dispatch_time > 0:
+            self.dispatch_time -= 1
+        if self.dispatch_time == 0:
+            self.dispatch = True
 
+    def __bool__(self):
+        return self.done
 
+    def str_pre(self):
+        res = f"  NNID: {self.nnid}\n"
+
+        if self.priority == 0:
+            res += f"  Priority: low\n"
+        elif self.priority == 1:
+            res += f"  Priority: medium\n"
+        elif self.priority == 2:
+            res += f"  Priority: high\n"
+        
+        res += "  Estimated: {self.estimated}"
+        res += "  Container Information:\n"
+        res += str(self.container)
+        res += "\n"
+
+        return res
+        

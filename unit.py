@@ -7,19 +7,7 @@ class Mmunit:
     
     # matrix mxk, kxn
     def compute(self, m, k, n):
-        '''
-        fit_m = int(m/self.width)
-        fit_k = int(k/self.height)
-        fit_n = int(n/self.depth)
-
-        inner = (self.height + self.width * 2 + self.depth) * fit_m * fit_k * fit_n
-        if n - fit_n * self.depth == 0:
-            outer = 0
-        else:
-            outer = (self.height + self.width * 2 + (n - fit_n * self.depth)) * (fit_m * fit_k)
-
-        self.processing = inner + outer
-        '''
+        self.processing = m + k + 2 * n
 
     def process(self, m=None, k=None, n=None):
         if self.processing == 0:

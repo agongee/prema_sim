@@ -17,6 +17,9 @@ class Test:
     def __str__(self):
         return str(self.done)
 
+    def __bool__(self):
+        return self.done
+
 if __name__ == '__main__':
     a = Test()
     b = Test()
@@ -29,10 +32,12 @@ if __name__ == '__main__':
     ll.append(c)
     ll.append(d)
 
-    ll[0].finish()
     ll[1].finish()
     ll[2].finish()
     ll[3].finish()
 
     for i in ll:
-        print(i)
+        if i:
+            print(1)
+        else:
+            print(0)

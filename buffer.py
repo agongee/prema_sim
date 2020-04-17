@@ -1,9 +1,8 @@
 class Buffer:
-    def __init__(self, size, bandwidth, latency, frequency):
+    def __init__(self, size, bandwidth, latency):
         self.size = size
         self.bandwidth = bandwidth
         self.latency = latency
-        self.frequency = frequency
         self.alloc_record = {}
         self.processing = 0
         self.to_load = None
