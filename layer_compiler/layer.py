@@ -1,7 +1,7 @@
 from enum_def import Type
 
 class Layer:
-    def __init__(self, layer_type, batch=1, in_dim=None, out_dim=None, h_dim=None, window_dim=None, act_type=None):
+    def __init__(self, layer_type, batch=1, in_dim=None, out_dim=None, h_dim=None, window_dim=None):
         self.layer_type = layer_type
         self.batch = batch
         
@@ -9,18 +9,11 @@ class Layer:
         self.out_dim = None
         self.window_dim = None
         self.h_dim = None
-        self.act_type = None
 
         if layer_type == Type.FC :
             if all((in_dim, out_dim)):
                 self.in_dim = in_dim
                 self.out_dim = out_dim
-            else:
-                print("Missing Argument!")
-        elif layer_type == Type.ACTV:
-            if all((in_dim, act_type)):
-                self.in_dim = in_dim
-                self.act_type = act_type
             else:
                 print("Missing Argument!")
         elif layer_type == Type.POOL:
@@ -40,6 +33,11 @@ class Layer:
             if all((in_dim, h_dim)):
                 self.in_dim = in_dim
                 self.h_dim = h_dim
+            else:
+                print("Missing Argument!")
+        elif layer_type == Type.ACTV:
+            if all((in_dim)):
+                self.in_dim = in_dim
             else:
                 print("Missing Argument!")
             
@@ -67,7 +65,7 @@ class Layer:
         if self.layer_type == Type.FC :
             return f"FC: In({self.in_dim}), Out({self.out_dim})"
         elif self.layer_type == Type.ACTV:
-            return f"ACTV: In({self.in_dim}), Type({self.act_type})"
+            return f"ACTV: In({self.in_dim})"
         elif self.layer_type == Type.POOL:
             return f"POOL: In({self.in_dim}), Window({self.window_dim})"
         elif self.layer_type == Type.RECR:
