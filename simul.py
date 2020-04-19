@@ -1,11 +1,11 @@
 import random
 
+from layer_compiler.enum_def import Type, Op, Buf
 from layer_compiler.layer import Layer, Container
-from layer_compiler.compiler import compile, NN
+from layer_compiler.compiler import NN
 from unit import Mmunit, Vecunit
 from scheduler import Scheduler
 from buffer import Buffer
-from enum_def import Type, Op, Buf
 
 KB = 1024
 MB = 1024 * 1024
@@ -27,8 +27,9 @@ if __name__ == '__main__':
     MUT = Mmunit(128, 128, 128)
     VUT = Vecunit(128)
 
-    UBUF = Buffer(8*MB, 358*GB, 100)
-    WBUF = Buffer(4*MB, 358*GB, 100)
+    UBUF = Buffer(8*MB/4, 358*GB/4, 100)
+    WBUF = Buffer(4*MB/4, 358*GB/4, 100)
+    ACCQ = Buffer(128*128, 358*GB/4, 0)
     
     # random container generator
     # for sample, just all fc layer instance
@@ -38,37 +39,37 @@ if __name__ == '__main__':
     container_3 = Container()
     container_4 = Container()
 
-    layer1 = Layer(Type.FC, batch=1, in_dim=100, out_dim=1000)
-    layer2 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=1000)
-    layer3 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=1000)
-    layer4 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=10)
+    layer1 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
+    layer2 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
+    layer3 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
+    layer4 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=10)
     container_1.push_layer(layer1)
     container_1.push_layer(layer2)
     container_1.push_layer(layer3)
     container_1.push_layer(layer4)
 
-    layer1 = Layer(Type.FC, batch=1, in_dim=100, out_dim=1000)
-    layer2 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=1000)
-    layer3 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=1000)
-    layer4 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=10)
+    layer1 = Layer(Type.FC, batch=400, in_dim=100, out_dim=1000)
+    layer2 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
+    layer3 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
+    layer4 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=10)
     container_2.push_layer(layer1)
     container_2.push_layer(layer2)
     container_2.push_layer(layer3)
     container_2.push_layer(layer4)
 
-    layer1 = Layer(Type.FC, batch=1, in_dim=100, out_dim=1000)
-    layer2 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=1000)
-    layer3 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=1000)
-    layer4 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=10)
+    layer1 = Layer(Type.FC, batch=400, in_dim=100, out_dim=1000)
+    layer2 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
+    layer3 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
+    layer4 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=10)
     container_3.push_layer(layer1)
     container_3.push_layer(layer2)
     container_3.push_layer(layer3)
     container_3.push_layer(layer4)
 
-    layer1 = Layer(Type.FC, batch=1, in_dim=100, out_dim=1000)
-    layer2 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=1000)
-    layer3 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=1000)
-    layer4 = Layer(Type.FC, batch=1, in_dim=1000, out_dim=10)
+    layer1 = Layer(Type.FC, batch=400, in_dim=100, out_dim=1000)
+    layer2 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
+    layer3 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
+    layer4 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=10)
     container_4.push_layer(layer1)
     container_4.push_layer(layer2)
     container_4.push_layer(layer3)
@@ -97,6 +98,9 @@ if __name__ == '__main__':
     cycle = 0
 
     task = None
+    check_task = None
+    nnid = -1
+
     buf_inst = None
     mm_inst = None
     vec_inst = None
@@ -109,7 +113,16 @@ if __name__ == '__main__':
 
     while not SCHED.check_done():
 
-        if checkpoint:
+        if cycle != 0 and cycle % 1000 == 0:
+            print(f"\n  Cycle = {cycle}")
+            if task == None:
+                print(f"  Current task = None\n")
+            else:
+                print(f"  Current task = {task.nnid}\n")
+            print(SCHED.str_current())
+            input()
+
+        if checkpoint and check_task != None:
             buf_check = False
             mm_check = False
             vec_check = False
@@ -130,12 +143,25 @@ if __name__ == '__main__':
                 vec_check = True
 
             if buf_check and mm_check and vec_check:
-                while True:
-                    
-                    
+                delay = 0
 
-            
-        
+                check_nnid = check_task.nnid
+                delay += UBUF.checkout(check_nnid)
+                delay += ACCQ.checkout(check_nnid)
+
+                nnid = task.nnid
+                delay += UBUF.checkout(nnid)
+                delay += ACCQ.checkout(nnid)
+
+                check_task.running = False
+                cycle += delay
+
+                for i in range(delay):
+                    SCHED.dispatch()
+                    
+                task.running = True
+                continue
+    
         # dispatch NN
         SCHED.dispatch()
         if SCHED.sched_check():
@@ -143,11 +169,24 @@ if __name__ == '__main__':
             SCHED.schedule()
             checkpoint = SCHED.preempt()
             task = SCHED.current
+            
+            if check_task == None:
+                checkpoint = False
+                task.running = True
+
+            cycle += 1
+            continue
+
+        if task == None:
+            print("DEBUG")
+            break
+        else:
+            print(f"DEBUG: {task.nnid}")
 
         # fetch instruction
         if not checkpoint:
             temp_inst = task.fetch1()
-            if temp_inst.fechable():
+            if temp_inst.fetchable():
                 if temp_inst.inst_type in [Op.LOAD_TILE, Op.STORE_TILE]:
                     if buf_inst == None:
                         buf_inst = task.fetch2()
@@ -164,8 +203,12 @@ if __name__ == '__main__':
                     elif vec_inst.done:
                         vec_inst = task.fetch2()
 
+        nnid = task.nnid
+
         # buffer processing
-        if buf_inst.buf == Buf.UBUF:
+        if buf_inst == None:
+            pass
+        elif buf_inst.buf == Buf.UBUF:
             op = buf_inst.inst_type
             size = buf_inst.size
             nnid = task.nnid
@@ -176,34 +219,34 @@ if __name__ == '__main__':
             nnid = task.nnid
             UBUF.process(op, size, nnid, True)
         
-        if UBUF.processing == 0:
+        if UBUF.processing == 0 and buf_inst != None:
             buf_inst.done = True
 
-        # mmunit processing 
-        m = mm_inst.M
-        k = mm_inst.K
-        n = mm_inst.n
-        MUT.process(m, k, n)
+        # mmunit processing
+        if mm_inst == None:
+            pass
+        else:
+            m = mm_inst.M
+            k = mm_inst.K
+            n = mm_inst.N
+            MUT.process(m, k, n)
 
-        if MUT.processing == 0:
+        if MUT.processing == 0 and mm_inst != None:
             mm_inst.done = True
+            ACCQ.save(m*n, nnid)
 
         # vecunit processing
-        size = vec_inst.size
-        VUT.process(size)
+        if vec_inst == None:
+            pass
+        else:
+            size = vec_inst.size
+            VUT.process(size)
 
-        if VUT.processing == 0:
+        if VUT.processing == 0 and vec_inst != None:
             vec_inst.done = True
-
-        
-
-        
-
-
-
-
-
-
-
+            ACCQ.save(size, nnid)
 
         cycle += 1
+
+
+    print(f"Cycle = {cycle}")

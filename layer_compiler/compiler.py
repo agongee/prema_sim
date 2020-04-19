@@ -1,6 +1,6 @@
 from layer_compiler.layer import Layer, Container
 from unit import Mmunit, Vecunit
-from enum_def import Type, Op, Buf
+from layer_compiler.enum_def import Type, Op, Buf
 
 
 def compile(layer: Layer, mmunit: Mmunit):
@@ -29,6 +29,7 @@ def compile(layer: Layer, mmunit: Mmunit):
         if left_n > 0:
             outer_n = 1
 
+        print(fit_m, fit_k, fit_n, left_m, left_k, left_n, outer_m, outer_n)
         for mm in range(fit_m):
             for nn in range(fit_n):
                 # single tile for output matrix
@@ -47,7 +48,9 @@ def compile(layer: Layer, mmunit: Mmunit):
                     inst.append(weight_load)
                     inst.append(gemm_op)
                 vect_op = Inst(Op.VECTOR_OP, size=mmunit.depth, depend=[gemm_op])
+                store_op = Inst(Op.STORE_TILE, size=mmunit.width*mmunit.depth, buf=Buf.UBUF)
                 inst.append(vect_op)
+                inst.append(store_op)
 
         if outer_m == 1:
             for nn in range(fit_n):
@@ -66,7 +69,9 @@ def compile(layer: Layer, mmunit: Mmunit):
                     inst.append(weight_load)
                     inst.append(gemm_op)
                 vect_op = Inst(Op.VECTOR_OP, size=mmunit.depth, depend=[gemm_op])
+                store_op = Inst(Op.STORE_TILE, size=left_m*mmunit.depth, buf=Buf.UBUF)
                 inst.append(vect_op)
+                inst.append(store_op)
 
         if outer_n == 1:
             for mm in range(fit_m):
@@ -85,7 +90,9 @@ def compile(layer: Layer, mmunit: Mmunit):
                     inst.append(weight_load)
                     inst.append(gemm_op)
                 vect_op = Inst(Op.VECTOR_OP, size=left_n, depend=[gemm_op])
+                store_op = Inst(Op.STORE_TILE, size=left_n*mmunit.width, buf=Buf.UBUF)
                 inst.append(vect_op)
+                inst.append(store_op)
 
         if outer_m == 1 and outer_n == 1:
             for kk in range(fit_k):
@@ -103,7 +110,9 @@ def compile(layer: Layer, mmunit: Mmunit):
                 inst.append(weight_load)
                 inst.append(gemm_op)
             vect_op = Inst(Op.VECTOR_OP, size=left_n, depend=[gemm_op])
+            store_op = Inst(Op.STORE_TILE, size=left_m*left_n, buf=Buf.UBUF)
             inst.append(vect_op)
+            inst.append(store_op)
 
     if layer.layer_type == Type.LSTM:
         '''
@@ -128,6 +137,13 @@ def compile(layer: Layer, mmunit: Mmunit):
             outer_m = 1
         if left_n > 0:
             outer_n = 1
+
+    # Debug
+    '''
+    for i in inst:
+        print(i)
+    '''
+    return inst
         
 
 
@@ -151,7 +167,7 @@ class Inst:
             if all((size, buf)):
                 self.size = size
                 self.base = -1
-                self.buf = -1
+                self.buf = buf
             else:
                 print("Missing Argument!")
         elif inst_type == Op.GEMM_OP:
@@ -162,13 +178,13 @@ class Inst:
             else:
                 print("Missing Argument!")
         elif inst_type == Op.VECTOR_OP:
-            if all((size)):
+            if size != None:
                 self.size = size
         elif inst_type == Op.STORE_TILE:
             if all((size, buf)):
                 self.size = size
                 self.base = -1
-                self.buf = -1
+                self.buf = buf
         '''
         elif inst_type = OP.CONV_OP:
             if all()
@@ -180,13 +196,34 @@ class Inst:
     def __bool__(self):
         return self.done
 
+    def __str__(self):
+        if self.inst_type == Op.LOAD_TILE:
+            res = f"LOAD_TILE\t{self.size}"
+            if self.buf == Buf.UBUF:
+                return res + "\tUBUF"
+            elif self.buf == Buf.WBUF:
+                return res + "\tWBUF"
+            return "DEBUG"
+        elif self.inst_type == Op.STORE_TILE:
+            res = f"STORE_TILE\t{self.size}"
+            if self.buf == Buf.UBUF:
+                return res + "\tUBUF"
+            elif self.buf == Buf.WBUF:
+                return res + "\tWBUF"
+            return "DEBUG"
+        elif self.inst_type == Op.GEMM_OP:
+            return f"GEMM_OP\t{self.M}\t{self.K}\t{self.N}"
+        elif self.inst_type == Op.VECTOR_OP:
+            return f"VECTOR_OP\t{self.size}"
+
+        return "DEBUG"
+
 
 # PCB for the given NN
 class NN:
     def __init__(self, priority, nnid, mmunit, dispatch_time):
         self.inst = []
         self.container = None
-        self.inst.extend(inst)
         self.priority = priority
         self.token = 0
         if self.priority == 0:
@@ -200,18 +237,21 @@ class NN:
         self.pc = 0
         self.done = False
         self.running = False
-        self.dispatch = False
+        self.dispatched = False
         self.dispatch_time = dispatch_time
-        self.estimated = -0
+        self.estimated = 0
         self.waited = 0
         self.runned = 0
         self.remaining = 0
+        self.context = None
 
     def container_to_inst(self, container: Container):
         self.container = container
-        for i in container:
+        for i in container.container:
+            print(i)
             self.inst.extend(compile(i, self.mmunit))
         self.estimated = self.container.estimate(self.mmunit.height, self.mmunit.width, self.mmunit.depth)
+        print("DEBUG: ", self.estimated)
 
     def fetch1(self):
         return self.inst[self.pc]
@@ -227,10 +267,7 @@ class NN:
         if self.dispatch_time > 0:
             self.dispatch_time -= 1
         if self.dispatch_time == 0:
-            self.dispatch = True
-
-    def __bool__(self):
-        return self.done
+            self.dispatched = True
 
     def str_pre(self):
         res = f"  NNID: {self.nnid}\n"
@@ -242,10 +279,34 @@ class NN:
         elif self.priority == 2:
             res += f"  Priority: high\n"
         
-        res += "  Estimated: {self.estimated}"
+        res += f"  Estimated: {self.estimated}\n"
         res += "  Container Information:\n"
         res += str(self.container)
         res += "\n"
 
         return res
+
+    def str_current(self):
+        res = f"  NNID: {self.nnid}\n"
+
+        if self.priority == 0:
+            res += f"  Priority: low\n"
+        elif self.priority == 1:
+            res += f"  Priority: medium\n"
+        elif self.priority == 2:
+            res += f"  Priority: high\n"
         
+        res += f"  Estimated: {self.estimated}\n"
+        if self.running:
+            res += f"  Running\n"
+        else:
+            res += f"  Wating\n"
+        res += f"  Runned: {self.runned}\n"
+        res += f"  Waited: {self.waited}\n"
+        res += "\n"
+
+        return res
+
+    
+    def __bool__(self):
+        return self.done

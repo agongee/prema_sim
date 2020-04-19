@@ -1,4 +1,4 @@
-from enum_def import Type
+from layer_compiler.enum_def import Type
 
 class Layer:
     def __init__(self, layer_type, batch=1, in_dim=None, out_dim=None, h_dim=None, window_dim=None):
@@ -65,24 +65,31 @@ class Layer:
             pass
         '''
 
-    def estimate(self, height, width, depth):
+    def estimate(self, height, width, depth, bw=358*1024*1024*1024/4):
         if self.layer_type == Type.FC :
             m = self.batch
             k = self.in_dim
             n = self.out_dim
 
+            c1 = height + 2 * width + depth
+            m1 = int((height * width + height * depth) / bw)
+            inner = max(c1, m1)
+
+            c2 = n - int(n/depth) * depth + height + 2 * width
+            m2 = int((height * width + height * (n - int(n/depth) * depth)) / bw)
+            outer = max(c2, m2)
+
+            case = 0
+            if n % depth != 0:
+                case = 1
+
             fit_m = int(m/width)
             fit_k = int(k/height)
             fit_n = int(n/depth)
 
-            inner = (height + width * 2 + depth) * fit_m * fit_k * fit_n
-
-            if n - fit_n * depth == 0:
-                outer = 0
-            else:
-                outer = (height + width * 2 + (n - fit_n * depth)) * (fit_m * fit_k)
-
-            return inner + outer
+            est = fit_m * fit_k * fit_n * inner + fit_m * fit_k * case * outer
+            print("EST in LAYER: ", est)
+            return est
         
         elif self.layer_type == Type.RECR:
             pass
@@ -113,7 +120,7 @@ class Container:
     def __init__(self, *args):
         self.container = []
         self.container.extend(args)
-        self.estimate = 0
+        self.estimated = 0
         
     def push_layer(self, layer):
         self.container.append(layer)
@@ -124,7 +131,10 @@ class Container:
 
     def estimate(self, height, width, depth):
         for i in self.container:
-            self.estimate += i.estimate(height, width, depth)
+            print("EST in CONT: ", i)
+            self.estimated += i.estimate(height, width, depth)
+
+        return self.estimated
 
     def __str__(self):
         ret = "{\n"
@@ -134,6 +144,3 @@ class Container:
         ret += "}"
 
         return ret
-    
-    def __iter__(self):
-        return self.container
