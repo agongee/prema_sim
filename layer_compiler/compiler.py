@@ -239,6 +239,8 @@ class NN:
         self.running = False
         self.dispatched = False
         self.dispatch_time = dispatch_time
+        if dispatch_time == 0:
+            self.dispatched = True
         self.estimated = 0
         self.waited = 0
         self.runned = 0
@@ -261,13 +263,30 @@ class NN:
         self.pc += 1
         if self.pc >= len(self.inst):
             self.done = True
+            self.running = False
         return self.inst[temp_pc]
 
-    def dispatch(self):
-        if self.dispatch_time > 0:
-            self.dispatch_time -= 1
-        if self.dispatch_time == 0:
+    def dispatch_nn(self):
+        if self.dispatch_time == 1:
+            self.dispatch_time = 0
             self.dispatched = True
+        elif self.dispatch_time > 0:
+            self.dispatch_time -= 1
+            self.dispatch = False
+        else:
+            self.dispatch_time = 0
+            self.dispatch = False
+
+    def inst_str(self):
+        res = f"  NNID: {self.nnid}\n"
+
+        for i in self.inst:
+            res += str(i)
+            res += '\n'
+
+        res += '\n'
+
+        return res
 
     def str_pre(self):
         res = f"  NNID: {self.nnid}\n"
@@ -278,7 +297,8 @@ class NN:
             res += f"  Priority: medium\n"
         elif self.priority == 2:
             res += f"  Priority: high\n"
-        
+
+        res += f"  To be Dispatched: {self.dispatch_time}\n"
         res += f"  Estimated: {self.estimated}\n"
         res += "  Container Information:\n"
         res += str(self.container)
@@ -296,13 +316,17 @@ class NN:
         elif self.priority == 2:
             res += f"  Priority: high\n"
         
-        res += f"  Estimated: {self.estimated}\n"
-        if self.running:
+        res += f"  To be Dispatched: {self.dispatch_time}\n"
+        res += f"  Estimated Time: {self.estimated}\n"
+        if self.done:
+            res += "  Done\n"
+        elif self.running:
             res += f"  Running\n"
         else:
             res += f"  Wating\n"
         res += f"  Runned: {self.runned}\n"
         res += f"  Waited: {self.waited}\n"
+        res += f"  Processing: {self.pc}/{len(self.inst)}\n"
         res += "\n"
 
         return res

@@ -31,7 +31,7 @@ class Context:
         
 
 class Buffer:
-    def __init__(self, size, bandwidth, latency):
+    def __init__(self, size, bandwidth, latency, name):
         self.size = size
         self.bandwidth = bandwidth
         self.latency = latency
@@ -40,6 +40,7 @@ class Buffer:
         self.to_load = None
         self.to_store = None
         self.context_list = {}
+        self.name = name
 
     def check_alloc(self, base, size=0):
         start = base
@@ -100,6 +101,7 @@ class Buffer:
         self.to_load = self.auto_alloc(size, nnid)
         self.processing = int(size/self.bandwidth) + self.latency
         if nnid not in self.context_list:
+            print(f"{self.name}: Context of {nnid} created at load")
             self.context_list[nnid] = Context(nnid)
 
     def store(self, addr, size, nnid, done=True):
@@ -112,6 +114,7 @@ class Buffer:
     def save(self, size, nnid):
         self.auto_alloc(size, nnid, True)
         if nnid not in self.context_list:
+            print(f"{self.name}: Context of {nnid} created at save")
             self.context_list[nnid] = Context(nnid)
 
     def process(self, op=None, size=None, nnid=None, done=True):
@@ -138,7 +141,9 @@ class Buffer:
 
     def checkout(self, nnid):
         delay = 0
-        for i in self.context_list[nnid]:
+        if nnid not in self.context_list:
+            return delay
+        for i in self.context_list[nnid].context:
             delay += int(i[1]/self.bandwidth) + self.latency
             del self.alloc_record[i[0]]
 

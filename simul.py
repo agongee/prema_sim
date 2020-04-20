@@ -17,7 +17,7 @@ def random_priority():
     
 
 def random_dispatch():
-    return int(random.uniform(0, 10000))
+    return int(random.uniform(0, 20000))
 
 
 if __name__ == '__main__':
@@ -27,9 +27,9 @@ if __name__ == '__main__':
     MUT = Mmunit(128, 128, 128)
     VUT = Vecunit(128)
 
-    UBUF = Buffer(8*MB/4, 358*GB/4, 100)
-    WBUF = Buffer(4*MB/4, 358*GB/4, 100)
-    ACCQ = Buffer(128*128, 358*GB/4, 0)
+    UBUF = Buffer(8*MB/4, 358*GB/4, 100, 'UBUF')
+    WBUF = Buffer(4*MB/4, 358*GB/4, 100, 'WBUF')
+    ACCQ = Buffer(128*128, 358*GB/4, 0, 'ACCQ')
     
     # random container generator
     # for sample, just all fc layer instance
@@ -39,43 +39,41 @@ if __name__ == '__main__':
     container_3 = Container()
     container_4 = Container()
 
-    layer1 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
-    layer2 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
-    layer3 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
-    layer4 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=10)
+    layer1 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
+    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
+    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
+    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10)
     container_1.push_layer(layer1)
     container_1.push_layer(layer2)
     container_1.push_layer(layer3)
     container_1.push_layer(layer4)
 
-    layer1 = Layer(Type.FC, batch=400, in_dim=100, out_dim=1000)
-    layer2 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
-    layer3 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
-    layer4 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=10)
+    layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
+    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
+    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
+    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10)
     container_2.push_layer(layer1)
     container_2.push_layer(layer2)
     container_2.push_layer(layer3)
     container_2.push_layer(layer4)
 
-    layer1 = Layer(Type.FC, batch=400, in_dim=100, out_dim=1000)
-    layer2 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
-    layer3 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
-    layer4 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=10)
+    layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
+    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
+    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
+    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10)
     container_3.push_layer(layer1)
     container_3.push_layer(layer2)
     container_3.push_layer(layer3)
     container_3.push_layer(layer4)
 
-    layer1 = Layer(Type.FC, batch=400, in_dim=100, out_dim=1000)
-    layer2 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
-    layer3 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=1000)
-    layer4 = Layer(Type.FC, batch=400, in_dim=1000, out_dim=10)
+    layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
+    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
+    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
+    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10)
     container_4.push_layer(layer1)
     container_4.push_layer(layer2)
     container_4.push_layer(layer3)
-    container_4.push_layer(layer4)
-
-    
+    container_4.push_layer(layer4)  
     
     # container to instruction and NN instance
 
@@ -88,6 +86,22 @@ if __name__ == '__main__':
     NN2.container_to_inst(container_2)
     NN3.container_to_inst(container_3)
     NN4.container_to_inst(container_4)
+
+    # NN to txt
+    f1 = open("inst/1.txt", 'w')
+    f2 = open("inst/2.txt", 'w')
+    f3 = open("inst/3.txt", 'w')
+    f4 = open("inst/4.txt", 'w')
+
+    f1.write(NN1.inst_str())
+    f2.write(NN2.inst_str())
+    f3.write(NN3.inst_str())
+    f4.write(NN4.inst_str())
+
+    f1.close()
+    f2.close()
+    f3.close()
+    f4.close()
 
     SCHED = Scheduler()
     SCHED.push_task(NN1)
@@ -113,14 +127,25 @@ if __name__ == '__main__':
 
     while not SCHED.check_done():
 
-        if cycle != 0 and cycle % 1000 == 0:
+        debug_task = task
+
+        
+        if cycle != 0 and cycle % 5000 == 0:
+            print(SCHED.str_current())
+
             print(f"\n  Cycle = {cycle}")
             if task == None:
                 print(f"  Current task = None\n")
             else:
                 print(f"  Current task = {task.nnid}\n")
-            print(SCHED.str_current())
-            input()
+            
+            print("  PC : ", task.pc)
+            print("  Buf: ", str(buf_inst))
+            print("  MM : ", str(mm_inst))
+            print("  Vec: ", str(vec_inst))
+            
+        
+        
 
         if checkpoint and check_task != None:
             buf_check = False
@@ -160,15 +185,27 @@ if __name__ == '__main__':
                     SCHED.dispatch()
                     
                 task.running = True
+                checkpoint = False
                 continue
     
         # dispatch NN
         SCHED.dispatch()
-        if SCHED.sched_check():
+        if SCHED.sched_check(cycle):
             check_task = SCHED.current
             SCHED.schedule()
             checkpoint = SCHED.preempt()
             task = SCHED.current
+
+            if check_task != None:
+                if task.nnid == check_task.nnid:
+                    checkpoint = False
+
+            if check_task != None:
+                print(f"  Schedule: {check_task.nnid} ==> {task.nnid}")
+                if checkpoint:
+                    print("  Mechanism: Checkpoint")
+                else:
+                    print("  Mechanism: Drain")
             
             if check_task == None:
                 checkpoint = False
@@ -177,11 +214,13 @@ if __name__ == '__main__':
             cycle += 1
             continue
 
+        '''
         if task == None:
             print("DEBUG")
             break
         else:
             print(f"DEBUG: {task.nnid}")
+        '''
 
         # fetch instruction
         if not checkpoint:
@@ -246,7 +285,9 @@ if __name__ == '__main__':
             vec_inst.done = True
             ACCQ.save(size, nnid)
 
-        cycle += 1
+        if debug_task.nnid != task.nnid:
+            print(f"DEBUG! @ Cycle={cycle}, {debug_task.nnid} ==> {task.nnid}")
 
+        cycle += 1        
 
     print(f"Cycle = {cycle}")

@@ -23,7 +23,7 @@ class Scheduler:
             if i.dispatched:
                 valid += 1
                 single_task = i
-        
+
         if valid == 1:
             self.candidate = single_task
             return single_task
@@ -68,7 +68,12 @@ class Scheduler:
 
     def dispatch(self):
         for i in self.queue:
-            i.dispatch()
+            pre_state = i.dispatched
+            i.dispatch_nn()
+            if not pre_state and i.dispatched:
+                print(f"NEW DISPATCH: NNID = {i.nnid}")
+                self.new_dispatch = True
+
             if i.running:
                 i.runned += 1
             elif i.dispatched:
@@ -77,16 +82,21 @@ class Scheduler:
     def check_done(self):
         return all(self.queue)
 
-    def sched_check(self):
+    def sched_check(self, cycle):
         res = False
         if self.current == None:
+            print(f"===== SCHEDULE [current_none] at {cycle} =====")
             return True
         if self.new_dispatch:
-            self.new_ = False
+            self.new_dispatch = False
+            print(f"===== SCHEDULE [new_dispatch] at {cycle} =====")
             res = True
         if self.current.done:
+            print(f"===== SCHEDULE [current_done] at {cycle} =====")
+            self.current = None
             res = True
         if self.elapsed == self.slice:
+            print(f"===== SCHEDULE [time_slice] at {cycle} =====")
             self.elapsed = 0
             res = True
 
