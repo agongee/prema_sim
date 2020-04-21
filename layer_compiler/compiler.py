@@ -29,7 +29,7 @@ def compile(layer: Layer, mmunit: Mmunit):
         if left_n > 0:
             outer_n = 1
 
-        print(fit_m, fit_k, fit_n, left_m, left_k, left_n, outer_m, outer_n)
+        # print(fit_m, fit_k, fit_n, left_m, left_k, left_n, outer_m, outer_n)
         for mm in range(fit_m):
             for nn in range(fit_n):
                 # single tile for output matrix
@@ -47,10 +47,10 @@ def compile(layer: Layer, mmunit: Mmunit):
                     inst.append(input_load)
                     inst.append(weight_load)
                     inst.append(gemm_op)
-                vect_op = Inst(Op.VECTOR_OP, size=mmunit.depth, depend=[gemm_op])
-                store_op = Inst(Op.STORE_TILE, size=mmunit.width*mmunit.depth, buf=Buf.UBUF)
-                inst.append(vect_op)
-                inst.append(store_op)
+                for i in range(mmunit.depth):
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                store_op = Inst(Op.STORE_TILE, size=mmunit.width*mmunit.depth, buf=Buf.UBUF, depend=[vect_op])
 
         if outer_m == 1:
             for nn in range(fit_n):
@@ -68,9 +68,10 @@ def compile(layer: Layer, mmunit: Mmunit):
                     inst.append(input_load)
                     inst.append(weight_load)
                     inst.append(gemm_op)
-                vect_op = Inst(Op.VECTOR_OP, size=mmunit.depth, depend=[gemm_op])
-                store_op = Inst(Op.STORE_TILE, size=left_m*mmunit.depth, buf=Buf.UBUF)
-                inst.append(vect_op)
+                for i in range(mmunit.depth):
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                store_op = Inst(Op.STORE_TILE, size=left_m*mmunit.depth, buf=Buf.UBUF, depend=[vect_op])
                 inst.append(store_op)
 
         if outer_n == 1:
@@ -89,9 +90,10 @@ def compile(layer: Layer, mmunit: Mmunit):
                     inst.append(input_load)
                     inst.append(weight_load)
                     inst.append(gemm_op)
-                vect_op = Inst(Op.VECTOR_OP, size=left_n, depend=[gemm_op])
-                store_op = Inst(Op.STORE_TILE, size=left_n*mmunit.width, buf=Buf.UBUF)
-                inst.append(vect_op)
+                for i in range(left_n):
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                store_op = Inst(Op.STORE_TILE, size=left_n*mmunit.width, buf=Buf.UBUF, depend=[vect_op])
                 inst.append(store_op)
 
         if outer_m == 1 and outer_n == 1:
@@ -109,10 +111,12 @@ def compile(layer: Layer, mmunit: Mmunit):
                 inst.append(input_load)
                 inst.append(weight_load)
                 inst.append(gemm_op)
-            vect_op = Inst(Op.VECTOR_OP, size=left_n, depend=[gemm_op])
-            store_op = Inst(Op.STORE_TILE, size=left_m*left_n, buf=Buf.UBUF)
-            inst.append(vect_op)
-            inst.append(store_op)
+            for i in range(left_n):
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)
+                
+        store_op = Inst(Op.STORE_TILE, size=left_m*left_n, buf=Buf.UBUF, depend=[vect_op])
+        inst.append(store_op)
 
     if layer.layer_type == Type.LSTM:
         '''
@@ -137,6 +141,14 @@ def compile(layer: Layer, mmunit: Mmunit):
             outer_m = 1
         if left_n > 0:
             outer_n = 1
+
+        input_load = None
+        hidden_load = None
+
+    
+                
+
+        
 
     # Debug
     '''

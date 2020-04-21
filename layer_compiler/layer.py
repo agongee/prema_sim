@@ -29,6 +29,7 @@ class Layer:
                 self.h_dim = h_dim
             else:
                 print("Missing Argument!")
+                
         '''
         elif layer_type == Type.POOL:
             if all((in_dim, window_dim)):

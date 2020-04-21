@@ -9,6 +9,7 @@ class Scheduler:
         self.new_dispatch = False
         self.slice = slice
         self.elapsed = 0
+        self.mode = 
     
     def push_task(self, task: NN):
         if isinstance(task, list):
@@ -16,27 +17,29 @@ class Scheduler:
         else:
             self.queue.append(task)
 
-    def schedule(self):
+    def schedule(self, cycle):
+        print("+++++SCHEDULE SCHEDULE SCHEDULE+++++")
         valid = 0
         single_task = None
         for i in self.queue:
-            if i.dispatched:
+            if i.dispatched and not i.done:
                 valid += 1
                 single_task = i
-
         if valid == 1:
             self.candidate = single_task
+            print(f"+++++ SCHEDULE case 1 {self.candidate.nnid} at {cycle} +++++")
             return single_task
         elif valid == 0:
+            print(f"+++++ SCHEDULE NOTHING at {cycle} +++++")
             return None
-
         for i in self.queue:
             slowdown = i.waited / i.estimated
             i.token += i.priority * slowdown
 
         res = None
-        
         for i in self.queue:
+            if not i.dispatched or i.done:
+                continue
             if i.token <= self.threshold:
                 continue
             if res == None:
@@ -44,15 +47,18 @@ class Scheduler:
                 continue
             if i.estimated < res.estimated:
                 res = i
-
         if res == None and len(self.queue) != 0:
-            res = self.queue[0]
-
+            for i in self.queue:
+                if i.dispatched and not i.done:
+                    res = i
+                    break
         self.candidate = res
+        print(f"+++++ SCHEDULE case 2 {self.candidate.nnid} at {cycle} +++++")
         return res
 
-    def preempt(self):
+    def preempt(self, cycle):
         if self.current == None:
+            print(f"***** PREEMPT [current_none] at {cycle} *****")
             self.current = self.candidate
             return True
         
@@ -85,18 +91,18 @@ class Scheduler:
     def sched_check(self, cycle):
         res = False
         if self.current == None:
-            print(f"===== SCHEDULE [current_none] at {cycle} =====")
+            print(f"===== SCHED_CHECK [current_none] at {cycle} =====")
             return True
         if self.new_dispatch:
             self.new_dispatch = False
-            print(f"===== SCHEDULE [new_dispatch] at {cycle} =====")
+            print(f"===== SCHE_CHECH [new_dispatch] at {cycle} =====")
             res = True
         if self.current.done:
-            print(f"===== SCHEDULE [current_done] at {cycle} =====")
+            print(f"===== SCHE_CHECH [current_done] at {cycle} =====")
             self.current = None
             res = True
         if self.elapsed == self.slice:
-            print(f"===== SCHEDULE [time_slice] at {cycle} =====")
+            print(f"===== SCHE_CHECH [time_slice] at {cycle} =====")
             self.elapsed = 0
             res = True
 

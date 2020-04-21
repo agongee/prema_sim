@@ -21,3 +21,15 @@ class Op(Enum):
     CONV_OP = 3
     VECTOR_OP = 4
     STORE_TILE = 5
+
+class Sched(Enum):
+    FCFS = 1
+    RRB = 2
+    HPF = 3
+    TOKEN = 4
+    SJF = 5
+    PREMA = 6
+
+class Mecha(Enum):
+    STATIC = 1
+    DYNAMIC = 2

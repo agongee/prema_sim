@@ -11,6 +11,10 @@ KB = 1024
 MB = 1024 * 1024
 GB = 1024 * 1024 * 1024
 
+HEIGHT = 128
+WIDTH = 128
+DEPTH = 128
+
 
 def random_priority():
     return random.randint(0, 2)
@@ -24,12 +28,12 @@ if __name__ == '__main__':
 
     # computation unit and buffer
 
-    MUT = Mmunit(128, 128, 128)
-    VUT = Vecunit(128)
+    MUT = Mmunit(HEIGHT, WIDTH, DEPTH)
+    VUT = Vecunit(WIDTH)
 
     UBUF = Buffer(8*MB/4, 358*GB/4, 100, 'UBUF')
     WBUF = Buffer(4*MB/4, 358*GB/4, 100, 'WBUF')
-    ACCQ = Buffer(128*128, 358*GB/4, 0, 'ACCQ')
+    ACCQ = Buffer(WIDTH*DEPTH, 358*GB/4, 0, 'ACCQ')
     
     # random container generator
     # for sample, just all fc layer instance
@@ -39,7 +43,7 @@ if __name__ == '__main__':
     container_3 = Container()
     container_4 = Container()
 
-    layer1 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
+    layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
     layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
     layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
     layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10)
@@ -131,21 +135,23 @@ if __name__ == '__main__':
 
         
         if cycle != 0 and cycle % 5000 == 0:
-            print(SCHED.str_current())
 
-            print(f"\n  Cycle = {cycle}")
+            print("\n===================================\n")      
+
+            print(f"\n  Cycle = {cycle}\n")
+
+            print(SCHED.str_current())
+            
             if task == None:
-                print(f"  Current task = None\n")
+                print(f"\n  Current task = None\n")
             else:
                 print(f"  Current task = {task.nnid}\n")
             
             print("  PC : ", task.pc)
             print("  Buf: ", str(buf_inst))
             print("  MM : ", str(mm_inst))
-            print("  Vec: ", str(vec_inst))
-            
-        
-        
+            print("  Vec: ", str(vec_inst)) 
+            print("\n===================================\n")      
 
         if checkpoint and check_task != None:
             buf_check = False
@@ -192,8 +198,8 @@ if __name__ == '__main__':
         SCHED.dispatch()
         if SCHED.sched_check(cycle):
             check_task = SCHED.current
-            SCHED.schedule()
-            checkpoint = SCHED.preempt()
+            SCHED.schedule(cycle)
+            checkpoint = SCHED.preempt(cycle)
             task = SCHED.current
 
             if check_task != None:
@@ -283,7 +289,7 @@ if __name__ == '__main__':
 
         if VUT.processing == 0 and vec_inst != None:
             vec_inst.done = True
-            ACCQ.save(size, nnid)
+            UBUF.save(size, nnid)
 
         if debug_task.nnid != task.nnid:
             print(f"DEBUG! @ Cycle={cycle}, {debug_task.nnid} ==> {task.nnid}")
