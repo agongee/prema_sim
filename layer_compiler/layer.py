@@ -1,14 +1,16 @@
 from layer_compiler.enum_def import Type
 
 class Layer:
-    def __init__(self, layer_type, batch=1, in_dim=None, out_dim=None, h_dim=None, window_dim=None):
+    def __init__(self, layer_type, batch=1, in_dim=None, out_dim=None, h_dim=None, window_dim=None, no_hidden=False, previous_input=False):
         self.layer_type = layer_type
         self.batch = batch
+        self.previous_input = previous_input
         
         self.in_dim = None
         self.out_dim = None
         self.window_dim = None
         self.h_dim = None
+        self.no_hidden = None
 
         if layer_type == Type.FC :
             if all((in_dim, out_dim)):
@@ -24,9 +26,10 @@ class Layer:
             else:
                 print("Missing Argument!")
         elif layer_type == Type.LSTM:
-            if all((in_dim, h_dim)):
+            if all((in_dim, h_dim, no_hidden)):
                 self.in_dim = in_dim
                 self.h_dim = h_dim
+                self.no_hidden = no_hidden
             else:
                 print("Missing Argument!")
                 

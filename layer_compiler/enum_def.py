@@ -21,6 +21,7 @@ class Op(Enum):
     CONV_OP = 3
     VECTOR_OP = 4
     STORE_TILE = 5
+    STORE_FAKE = 6
 
 class Sched(Enum):
     FCFS = 1

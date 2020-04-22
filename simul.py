@@ -44,36 +44,36 @@ if __name__ == '__main__':
     container_4 = Container()
 
     layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
-    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
-    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
-    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10)
+    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
+    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
+    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10, previous_input=True)
     container_1.push_layer(layer1)
     container_1.push_layer(layer2)
     container_1.push_layer(layer3)
     container_1.push_layer(layer4)
 
     layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
-    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
-    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
-    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10)
+    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
+    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
+    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10, previous_input=True)
     container_2.push_layer(layer1)
     container_2.push_layer(layer2)
     container_2.push_layer(layer3)
     container_2.push_layer(layer4)
 
     layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
-    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
-    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
-    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10)
+    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
+    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
+    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10, previous_input=True)
     container_3.push_layer(layer1)
     container_3.push_layer(layer2)
     container_3.push_layer(layer3)
     container_3.push_layer(layer4)
 
     layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
-    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
-    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400)
-    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10)
+    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
+    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
+    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10, previous_input=True)
     container_4.push_layer(layer1)
     container_4.push_layer(layer2)
     container_4.push_layer(layer3)
@@ -181,8 +181,8 @@ if __name__ == '__main__':
                 delay += ACCQ.checkout(check_nnid)
 
                 nnid = task.nnid
-                delay += UBUF.checkout(nnid)
-                delay += ACCQ.checkout(nnid)
+                delay += UBUF.recover(nnid)
+                delay += ACCQ.recover(nnid)
 
                 check_task.running = False
                 cycle += delay
@@ -205,13 +205,12 @@ if __name__ == '__main__':
             if check_task != None:
                 if task.nnid == check_task.nnid:
                     checkpoint = False
-
-            if check_task != None:
-                print(f"  Schedule: {check_task.nnid} ==> {task.nnid}")
-                if checkpoint:
-                    print("  Mechanism: Checkpoint")
-                else:
-                    print("  Mechanism: Drain")
+                elif check_task != None:
+                    print(f"  Schedule: {check_task.nnid} ==> {task.nnid}")
+                    if checkpoint:
+                        print("  Mechanism: Checkpoint")
+                    else:
+                        print("  Mechanism: Drain")
             
             if check_task == None:
                 checkpoint = False
@@ -228,11 +227,16 @@ if __name__ == '__main__':
             print(f"DEBUG: {task.nnid}")
         '''
 
+        nnid = task.nnid
+
         # fetch instruction
         if not checkpoint:
             temp_inst = task.fetch1()
             if temp_inst.fetchable():
-                if temp_inst.inst_type in [Op.LOAD_TILE, Op.STORE_TILE]:
+                # store fake
+                if temp_inst.isnt_type == Op.STORE_FAKE:
+                    ACCQ.store_fake(nnid)
+                elif temp_inst.inst_type in [Op.LOAD_TILE, Op.STORE_TILE]:
                     if buf_inst == None:
                         buf_inst = task.fetch2()
                     elif buf_inst.done:
@@ -247,8 +251,6 @@ if __name__ == '__main__':
                         vec_inst = task.fetch2()
                     elif vec_inst.done:
                         vec_inst = task.fetch2()
-
-        nnid = task.nnid
 
         # buffer processing
         if buf_inst == None:

@@ -22,6 +22,15 @@ class Context:
         for i in self.context:
             i[2] = False
 
+    def context_size(self):
+        size = 0
+        for i in self.context:
+            size += i[1]
+        return size
+
+    def context_out(self):
+        self.context = []
+
     def recover(self):
         for i in self.context:
             i[2] = True
@@ -38,7 +47,8 @@ class Buffer:
         self.alloc_record = {}
         self.processing = 0
         self.to_load = None
-        self.to_store = None
+        #self.to_store = None
+        self.to_store = []
         self.context_list = {}
         self.name = name
 
@@ -104,18 +114,29 @@ class Buffer:
             print(f"{self.name}: Context of {nnid} created at load")
             self.context_list[nnid] = Context(nnid)
 
+    '''
     def store(self, addr, size, nnid, done=True):
         if self.alloc_record[addr][0] == size and self.alloc_record[addr][1] == nnid:
             self.to_store = (addr, done)
             self.processing = int(size/self.bandwidth) + self.latency
         else:
             print("Wrong Store Request")
+    '''
+    def store(self, nnid):
+        size = self.context_list[nnid].context_size()
+        self.processing = int(size/self.bandwidth) + self.latency
+        for i in self.context_list[nnid].context:
+            self.to_store.append(i[0])
+
+    def store_fake(self, nnid):
+        self.context_list[nnid].context_out()
 
     def save(self, size, nnid):
-        self.auto_alloc(size, nnid, True)
+        addr = self.auto_alloc(size, nnid, True)
         if nnid not in self.context_list:
             print(f"{self.name}: Context of {nnid} created at save")
             self.context_list[nnid] = Context(nnid)
+        self.context_list[nnid].push_context(addr, size)
 
     def process(self, op=None, size=None, nnid=None, done=True):
         if self.processing == 0:
@@ -123,14 +144,23 @@ class Buffer:
                 if op == 'LOAD':
                     self.load(size, nnid)
                 elif op == 'STORE':
-                    self.store(size, nnid, done)
+                    #self.store(size, nnid, done)
+                    self.store(nnid)
         elif self.processing == 1:
             if self.to_load != None:
                 return self.to_load
+            
+            elif len(self.to_store) != 0:
+                self.context_list[nnid].context_out()
+                while len(self.to_store) != 0:
+                    addr = self.to_store.pop()
+                    del self.alloc_record[addr]
+            '''
             elif self.to_store != None:
+                self.context_list[nnid].del_context(self.to_store[0])     
                 if self.to_store[1]:
                     del self.alloc_record[self.to_store[0]]
-                    self.context_list[nnid].del_context(self.to_store[0])        
+            '''
             self.to_load = None
             self.to_store = None
             self.processing = 0

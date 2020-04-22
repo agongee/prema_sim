@@ -1,43 +1,10 @@
-class Test:
-    def __init__(self, depend=None):
-        self.done = False
-        self.depend = []
-        if depend != None:
-            self.depend.extend(depend)
+import plotly.figure_factory as ff
 
-    def finish(self):
-        t = True
-        for i in self.depend:
-            if not i.done:
-                t = False
+df = [dict(Task="Job A", Start=0, Finish=10, Resource='Apple'),
+      dict(Task="Job B", Start=10, Finish=24, Resource='Grape'),
+      dict(Task="Job C", Start=24, Finish=36, Resource='Banana')]
 
-        if t:
-            self.done = True
+colors = dict(Apple='rgb(220, 0, 0)', Grape='rgb(170, 14, 200)', Banana=(1, 0.9, 0.16))
 
-    def __str__(self):
-        return str(self.done)
-
-    def __bool__(self):
-        return self.done
-
-if __name__ == '__main__':
-    a = Test()
-    b = Test()
-    c = Test(depend=[a, b])
-    d = Test(depend=[c])
-
-    ll = []
-    ll.append(a)
-    ll.append(b)
-    ll.append(c)
-    ll.append(d)
-
-    ll[1].finish()
-    ll[2].finish()
-    ll[3].finish()
-
-    for i in ll:
-        if i:
-            print(1)
-        else:
-            print(0)
+fig = ff.create_gantt(df, colors=colors, index_col='Resource', show_colorbar=True)
+fig.show()
