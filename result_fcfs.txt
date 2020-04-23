@@ -1,0 +1,901 @@
+FC: In(100), Out(400)
+FC: In(400), Out(400)
+FC: In(400), Out(400)
+FC: In(400), Out(10)
+EST in CONT:  FC: In(100), Out(400)
+EST in LAYER:  0
+EST in CONT:  FC: In(400), Out(400)
+EST in LAYER:  5808
+EST in CONT:  FC: In(400), Out(400)
+EST in LAYER:  5808
+EST in CONT:  FC: In(400), Out(10)
+EST in LAYER:  1182
+DEBUG:  12798
+FC: In(100), Out(400)
+FC: In(400), Out(400)
+FC: In(400), Out(400)
+FC: In(400), Out(10)
+EST in CONT:  FC: In(100), Out(400)
+EST in LAYER:  0
+EST in CONT:  FC: In(400), Out(400)
+EST in LAYER:  5808
+EST in CONT:  FC: In(400), Out(400)
+EST in LAYER:  5808
+EST in CONT:  FC: In(400), Out(10)
+EST in LAYER:  1182
+DEBUG:  12798
+FC: In(100), Out(400)
+FC: In(400), Out(400)
+FC: In(400), Out(400)
+FC: In(400), Out(10)
+EST in CONT:  FC: In(100), Out(400)
+EST in LAYER:  0
+EST in CONT:  FC: In(400), Out(400)
+EST in LAYER:  5808
+EST in CONT:  FC: In(400), Out(400)
+EST in LAYER:  5808
+EST in CONT:  FC: In(400), Out(10)
+EST in LAYER:  1182
+DEBUG:  12798
+FC: In(100), Out(400)
+FC: In(400), Out(400)
+FC: In(400), Out(400)
+FC: In(400), Out(10)
+EST in CONT:  FC: In(100), Out(400)
+EST in LAYER:  0
+EST in CONT:  FC: In(400), Out(400)
+EST in LAYER:  5808
+EST in CONT:  FC: In(400), Out(400)
+EST in LAYER:  5808
+EST in CONT:  FC: In(400), Out(10)
+EST in LAYER:  1182
+DEBUG:  12798
+===== PREMA SIMULATION =====
+  NNID: 1
+  Priority: high
+  To be Dispatched: 0
+  Estimated: 12798
+  Container Information:
+{
+	FC: In(100), Out(400)
+	FC: In(400), Out(400)
+	FC: In(400), Out(400)
+	FC: In(400), Out(10)
+}
+  NNID: 2
+  Priority: medium
+  To be Dispatched: 46039
+  Estimated: 12798
+  Container Information:
+{
+	FC: In(100), Out(400)
+	FC: In(400), Out(400)
+	FC: In(400), Out(400)
+	FC: In(400), Out(10)
+}
+  NNID: 3
+  Priority: medium
+  To be Dispatched: 7666
+  Estimated: 12798
+  Container Information:
+{
+	FC: In(100), Out(400)
+	FC: In(400), Out(400)
+	FC: In(400), Out(400)
+	FC: In(400), Out(10)
+}
+  NNID: 4
+  Priority: low
+  To be Dispatched: 14125
+  Estimated: 12798
+  Container Information:
+{
+	FC: In(100), Out(400)
+	FC: In(400), Out(400)
+	FC: In(400), Out(400)
+	FC: In(400), Out(10)
+}
+
+===== SCHED_CHECK [current_none] at 0 =====
+***** PREEMPT [current_none] at 0 *****
+ACCQ: Context of 1 created at save
+UBUF: Context of 1 created at save
+NEW DISPATCH: NNID = 3
+===== SCHED_CHECH [new_dispatch] at 7665 =====
+***** PREEMPT [CHECKPOINT] at 7665 *****
+
+===================================
+
+
+  Cycle = 10000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 9999
+  Waited: 1
+  Processing: 68/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 36039
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 0
+  Processing: 0/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 2335
+  Processing: 0/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 4125
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 0
+  Processing: 0/196
+
+
+  Current task = 1
+
+  PC :  68
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	128
+
+===================================
+
+NEW DISPATCH: NNID = 4
+===== SCHED_CHECH [new_dispatch] at 14124 =====
+***** PREEMPT [CHECKPOINT] at 14124 *****
+
+===================================
+
+
+  Cycle = 20000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 19999
+  Waited: 1
+  Processing: 119/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 26039
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 0
+  Processing: 0/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 12335
+  Processing: 0/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 5876
+  Processing: 0/196
+
+
+  Current task = 1
+
+  PC :  119
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	72
+
+===================================
+
+
+===================================
+
+
+  Cycle = 30000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 29999
+  Waited: 1
+  Processing: 169/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 16039
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 0
+  Processing: 0/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 22335
+  Processing: 0/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 15876
+  Processing: 0/196
+
+
+  Current task = 1
+
+  PC :  169
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	72
+
+===================================
+
+===== SCHED_CHECH [current_done] at 34896 =====
+***** PREEMPT [current_none] at 34896 *****
+ACCQ: Context of 3 created at save
+UBUF: Context of 3 created at save
+
+===================================
+
+
+  Cycle = 40000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 6039
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 0
+  Processing: 0/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 5103
+  Waited: 27232
+  Processing: 45/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 25876
+  Processing: 0/196
+
+
+  Current task = 3
+
+  PC :  45
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	72
+
+===================================
+
+NEW DISPATCH: NNID = 2
+===== SCHED_CHECH [new_dispatch] at 46038 =====
+***** PREEMPT [CHECKPOINT] at 46038 *****
+
+===================================
+
+
+  Cycle = 50000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 3962
+  Processing: 0/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 15103
+  Waited: 27232
+  Processing: 95/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 35876
+  Processing: 0/196
+
+
+  Current task = 3
+
+  PC :  95
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	72
+
+===================================
+
+
+===================================
+
+
+  Cycle = 60000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 13962
+  Processing: 0/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 25103
+  Waited: 27232
+  Processing: 145/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 45876
+  Processing: 0/196
+
+
+  Current task = 3
+
+  PC :  145
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	128
+
+===================================
+
+===== SCHED_CHECH [current_done] at 69782 =====
+***** PREEMPT [current_none] at 69782 *****
+
+===================================
+
+
+  Cycle = 70000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 23962
+  Processing: 0/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34885
+  Waited: 27232
+  Processing: 196/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 217
+  Waited: 55659
+  Processing: 3/196
+
+
+  Current task = 4
+
+  PC :  3
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	72
+
+===================================
+
+ACCQ: Context of 4 created at save
+UBUF: Context of 4 created at save
+
+===================================
+
+
+  Cycle = 80000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 33962
+  Processing: 0/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34885
+  Waited: 27232
+  Processing: 196/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 10217
+  Waited: 55659
+  Processing: 68/196
+
+
+  Current task = 4
+
+  PC :  68
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	128
+
+===================================
+
+
+===================================
+
+
+  Cycle = 90000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 43962
+  Processing: 0/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34885
+  Waited: 27232
+  Processing: 196/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 20217
+  Waited: 55659
+  Processing: 120/196
+
+
+  Current task = 4
+
+  PC :  120
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	72
+
+===================================
+
+
+===================================
+
+
+  Cycle = 100000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Wating
+  Runned: 0
+  Waited: 53962
+  Processing: 0/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34885
+  Waited: 27232
+  Processing: 196/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 30217
+  Waited: 55659
+  Processing: 169/196
+
+
+  Current task = 4
+
+  PC :  169
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	72
+
+===================================
+
+===== SCHED_CHECH [current_done] at 104667 =====
+***** PREEMPT [current_none] at 104667 *****
+ACCQ: Context of 2 created at save
+UBUF: Context of 2 created at save
+
+===================================
+
+
+  Cycle = 110000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 5332
+  Waited: 58630
+  Processing: 47/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34885
+  Waited: 27232
+  Processing: 196/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34884
+  Waited: 55659
+  Processing: 196/196
+
+
+  Current task = 2
+
+  PC :  47
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	72
+
+===================================
+
+
+===================================
+
+
+  Cycle = 120000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 15332
+  Waited: 58630
+  Processing: 95/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34885
+  Waited: 27232
+  Processing: 196/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34884
+  Waited: 55659
+  Processing: 196/196
+
+
+  Current task = 2
+
+  PC :  95
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	72
+
+===================================
+
+
+===================================
+
+
+  Cycle = 130000
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Running
+  Runned: 25332
+  Waited: 58630
+  Processing: 147/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34885
+  Waited: 27232
+  Processing: 196/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34884
+  Waited: 55659
+  Processing: 196/196
+
+
+  Current task = 2
+
+  PC :  147
+  Buf:  LOAD_TILE	16384	WBUF
+  MM :  GEMM_OP	128	128	128
+  Vec:  VECTOR_OP	128
+
+===================================
+
+======================================
+
+
+Cycle = 139552
+Overhead = 0
+
+  NNID: 1
+  Priority: high
+  Originally Dispatched: 0
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34895
+  Waited: 1
+  Processing: 196/196
+
+  NNID: 2
+  Priority: medium
+  Originally Dispatched: 46039
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34884
+  Waited: 58630
+  Processing: 196/196
+
+  NNID: 3
+  Priority: medium
+  Originally Dispatched: 7666
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34885
+  Waited: 27232
+  Processing: 196/196
+
+  NNID: 4
+  Priority: low
+  Originally Dispatched: 14125
+  To be Dispatched: 0
+  Estimated Time: 12798
+  Done
+  Runned: 34884
+  Waited: 55659
+  Processing: 196/196
+
+
+
+======================================
+

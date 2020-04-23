@@ -29,6 +29,11 @@ def compile(layer: Layer, mmunit: Mmunit):
         if left_n > 0:
             outer_n = 1
 
+        input_load = None
+        '''
+        if layer.previous_input:
+            input_load = Inst(Op.NOP)        
+        '''
         # print(fit_m, fit_k, fit_n, left_m, left_k, left_n, outer_m, outer_n)
         for mm in range(fit_m):
             for nn in range(fit_n):
@@ -38,22 +43,30 @@ def compile(layer: Layer, mmunit: Mmunit):
                         input_load = Inst(Op.LOAD_TILE, size=mmunit.width*mmunit.height, buf=Buf.UBUF)
                         inst.append(input_load)
                     weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
                     inst.append(weight_load)
-                    inst.append(gemm_op)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load,weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[ weight_load])
+                        inst.append(gemm_op)                    
                 if outer_m == 1:
                     if not layer.previous_input:
                         input_load = Inst(Op.LOAD_TILE, size=mmunit.width*left_k, buf=Buf.UBUF)
                         inst.append(input_load)
-                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.depth*left_k, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=left_k, N=mmunit.depth, depend=[input_load, weight_load])
-                    inst.append(weight_load)
-                    inst.append(gemm_op)
-                for i in range(mmunit.depth):
-                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
-                    inst.append(vect_op)
-                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[vect_op])
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load  )
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op) 
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                inst.append(vect_op) 
                 store_op = Inst(Op.STORE_TILE, size=mmunit.width*mmunit.depth, buf=Buf.UBUF, depend=[vect_op])
+                inst.append(store_op)
 
         if outer_m == 1:
             for nn in range(fit_n):
@@ -62,20 +75,28 @@ def compile(layer: Layer, mmunit: Mmunit):
                         input_load = Inst(Op.LOAD_TILE, size=left_m*mmunit.height, buf=Buf.UBUF)
                         inst.append(input_load)
                     weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=left_m, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
                     inst.append(weight_load)
-                    inst.append(gemm_op)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
                 if outer_m == 1:
                     if not layer.previous_input:
                         input_load = Inst(Op.LOAD_TILE, size=left_m*left_k, buf=Buf.UBUF)
                         inst.append(input_load)
-                    weight_load = Inst(Op.LOAD_TILE, size=left_k*mmunit.depth, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=left_m, K=left_k, N=mmunit.depth, depend=[input_load, weight_load])
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                     inst.append(weight_load)
-                    inst.append(gemm_op)
-                for i in range(mmunit.depth):
-                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
-                    inst.append(vect_op)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)
                 store_op = Inst(Op.STORE_TILE, size=left_m*mmunit.depth, buf=Buf.UBUF, depend=[vect_op])
                 inst.append(store_op)
 
@@ -84,22 +105,30 @@ def compile(layer: Layer, mmunit: Mmunit):
                 for kk in range(fit_k):
                     if not layer.previous_input:
                         input_load = Inst(Op.LOAD_TILE, size=mmunit.width*mmunit.height, buf=Buf.UBUF)
-                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*left_n, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=left_n, depend=[input_load, weight_load])
-                    inst.append(input_load)
+                        inst.append(input_load)
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                     inst.append(weight_load)
-                    inst.append(gemm_op)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)               
                 if outer_m == 1:
                     if not layer.previous_input:
                         input_load = Inst(Op.LOAD_TILE, size=mmunit.width*left_k, buf=Buf.UBUF)
                         inst.append(input_load)
-                    weight_load = Inst(Op.LOAD_TILE, size=left_k*left_n, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=left_k, N=left_n, depend=[input_load, weight_load])
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                     inst.append(weight_load)
-                    inst.append(gemm_op)
-                for i in range(left_n):
-                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
-                    inst.append(vect_op)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                inst.append(vect_op)
                 store_op = Inst(Op.STORE_TILE, size=left_n*mmunit.width, buf=Buf.UBUF, depend=[vect_op])
                 inst.append(store_op)
 
@@ -108,21 +137,29 @@ def compile(layer: Layer, mmunit: Mmunit):
                 if not layer.previous_input:
                     input_load = Inst(Op.LOAD_TILE, size=left_m*mmunit.height, buf=Buf.UBUF)
                     inst.append(input_load)
-                weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*left_n, buf=Buf.WBUF)
-                gemm_op = Inst(Op.GEMM_OP, M=left_m, K=mmunit.height, N=left_n, depend=[input_load, weight_load])
+                weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                 inst.append(weight_load)
-                inst.append(gemm_op)
+                if not layer.previous_input:
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                    inst.append(gemm_op)
+                else:
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
             if outer_m == 1:
                 if not layer.previous_input:
                     input_load = Inst(Op.LOAD_TILE, size=left_m*left_k, buf=Buf.UBUF)
                     inst.append(input_load)
-                weight_load = Inst(Op.LOAD_TILE, size=left_k*left_n, buf=Buf.WBUF)
-                gemm_op = Inst(Op.GEMM_OP, M=left_m, K=left_k, N=left_n, depend=[input_load, weight_load])
+                weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                 inst.append(weight_load)
-                inst.append(gemm_op)
-            for i in range(left_n):
-                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
-                inst.append(vect_op)           
+                if not layer.previous_input:
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                    inst.append(gemm_op)
+                else:
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+            store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+            vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+            inst.append(vect_op)           
             store_op = Inst(Op.STORE_TILE, size=left_m*left_n, buf=Buf.UBUF, depend=[vect_op])
             inst.append(store_op)
 
@@ -132,15 +169,18 @@ def compile(layer: Layer, mmunit: Mmunit):
         Weight: SH * SW (k * n)
         '''
         m = layer.batch
-        k = layer.in_dim
-        n = layer.out_dim
+        k_in = layer.in_dim
+        k_h = layer.h_dim
+        n = layer.h_dim
 
         fit_m = int(m/mmunit.width)
-        fit_k = int(k/mmunit.height)
+        fit_k_in = int(k_in/mmunit.height)
+        fit_k_h = int(k_h/mmunit.height)
         fit_n = int(n/mmunit.depth)
         
         left_m = m - fit_m*mmunit.width 
-        left_k = k - fit_k*mmunit.height
+        left_k_in = k_in - fit_k_in*mmunit.height
+        left_k_h = k_h - fit_k_h*mmunit.height
         left_n = n - fit_n*mmunit.depth
 
         outer_m = 0
@@ -153,106 +193,265 @@ def compile(layer: Layer, mmunit: Mmunit):
         input_load = None
         hidden_load = None
 
-        # ft computation
-        # 1) W_xh_f * x_t
+        # it computation
+        # 1) W_xh_i * x_t
         for mm in range(fit_m):
             for nn in range(fit_n):
                 # single tile for output matrix
-                for kk in range(fit_k):
+                for kk in range(fit_k_in):
                     if not layer.previous_input:
                         input_load = Inst(Op.LOAD_TILE, size=mmunit.width*mmunit.height, buf=Buf.UBUF)
                         inst.append(input_load)
                     weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
                     inst.append(weight_load)
-                    inst.append(gemm_op)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load,weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[ weight_load])
+                        inst.append(gemm_op)                    
                 if outer_m == 1:
                     if not layer.previous_input:
-                        input_load = Inst(Op.LOAD_TILE, size=mmunit.width*left_k, buf=Buf.UBUF)
+                        input_load = Inst(Op.LOAD_TILE, size=mmunit.width*left_k_in, buf=Buf.UBUF)
                         inst.append(input_load)
-                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.depth*left_k, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=left_k, N=mmunit.depth, depend=[input_load, weight_load])
-                    inst.append(weight_load)
-                    inst.append(gemm_op)
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load  )
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op) 
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+                if layer.no_hidden:   
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
 
         if outer_m == 1:
             for nn in range(fit_n):
-                for kk in range(fit_k):
+                for kk in range(fit_k_in):
                     if not layer.previous_input:
                         input_load = Inst(Op.LOAD_TILE, size=left_m*mmunit.height, buf=Buf.UBUF)
                         inst.append(input_load)
                     weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=left_m, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
                     inst.append(weight_load)
-                    inst.append(gemm_op)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
                 if outer_m == 1:
                     if not layer.previous_input:
-                        input_load = Inst(Op.LOAD_TILE, size=left_m*left_k, buf=Buf.UBUF)
+                        input_load = Inst(Op.LOAD_TILE, size=left_m*left_k_in, buf=Buf.UBUF)
                         inst.append(input_load)
-                    weight_load = Inst(Op.LOAD_TILE, size=left_k*mmunit.depth, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=left_m, K=left_k, N=mmunit.depth, depend=[input_load, weight_load])
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                     inst.append(weight_load)
-                    inst.append(gemm_op)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+                if layer.no_hidden:   
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
 
         if outer_n == 1:
             for mm in range(fit_m):
-                for kk in range(fit_k):
+                for kk in range(fit_k_in):
                     if not layer.previous_input:
                         input_load = Inst(Op.LOAD_TILE, size=mmunit.width*mmunit.height, buf=Buf.UBUF)
-                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*left_n, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=left_n, depend=[input_load, weight_load])
-                    inst.append(input_load)
+                        inst.append(input_load)
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                     inst.append(weight_load)
-                    inst.append(gemm_op)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)               
                 if outer_m == 1:
                     if not layer.previous_input:
-                        input_load = Inst(Op.LOAD_TILE, size=mmunit.width*left_k, buf=Buf.UBUF)
+                        input_load = Inst(Op.LOAD_TILE, size=mmunit.width*left_k_in, buf=Buf.UBUF)
                         inst.append(input_load)
-                    weight_load = Inst(Op.LOAD_TILE, size=left_k*left_n, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=left_k, N=left_n, depend=[input_load, weight_load])
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                     inst.append(weight_load)
-                    inst.append(gemm_op)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])  
+                if layer.no_hidden:  
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
 
         if outer_m == 1 and outer_n == 1:
-            for kk in range(fit_k):
+            for kk in range(fit_k_in):
                 if not layer.previous_input:
                     input_load = Inst(Op.LOAD_TILE, size=left_m*mmunit.height, buf=Buf.UBUF)
                     inst.append(input_load)
-                weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*left_n, buf=Buf.WBUF)
-                gemm_op = Inst(Op.GEMM_OP, M=left_m, K=mmunit.height, N=left_n, depend=[input_load, weight_load])
-                inst.append(weight_load)
-                inst.append(gemm_op)
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
             if outer_m == 1:
                 if not layer.previous_input:
-                    input_load = Inst(Op.LOAD_TILE, size=left_m*left_k, buf=Buf.UBUF)
+                    input_load = Inst(Op.LOAD_TILE, size=left_m*left_k_in, buf=Buf.UBUF)
                     inst.append(input_load)
-                weight_load = Inst(Op.LOAD_TILE, size=left_k*left_n, buf=Buf.WBUF)
-                gemm_op = Inst(Op.GEMM_OP, M=left_m, K=left_k, N=left_n, depend=[input_load, weight_load])
-                inst.append(weight_load)
-                inst.append(gemm_op)
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    if not layer.previous_input:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
+                        inst.append(gemm_op)
+                    else:
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+            store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+            if layer.no_hidden:
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)     
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)        
 
-        # 2) W_hh_f * h_t-1 , add all
+        # 2) W_hh_i * h_t-1 , add all
         if not layer.no_hidden:
             for mm in range(fit_m):
                 for nn in range(fit_n):
                     # single tile for output matrix
-                    for kk in range(fit_k):
+                    for kk in range(fit_k_h):
                         if not layer.previous_input:
                             input_load = Inst(Op.LOAD_TILE, size=mmunit.width*mmunit.height, buf=Buf.UBUF)
                             inst.append(input_load)
                         weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
                         inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)                    
+                    if outer_m == 1:
+                        if not layer.previous_input:
+                            input_load = Inst(Op.LOAD_TILE, size=mmunit.width*left_k_h, buf=Buf.UBUF)
+                            inst.append(input_load)
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load  )
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op) 
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op) 
+
+            if outer_m == 1:
+                for nn in range(fit_n):
+                    for kk in range(fit_k_h):
+                        if not layer.previous_input:
+                            input_load = Inst(Op.LOAD_TILE, size=left_m*mmunit.height, buf=Buf.UBUF)
+                            inst.append(input_load)
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)
                     if outer_m == 1:
                         if not layer.previous_input:
-                            input_load = Inst(Op.LOAD_TILE, size=mmunit.width*left_k, buf=Buf.UBUF)
+                            input_load = Inst(Op.LOAD_TILE, size=left_m*left_k_h, buf=Buf.UBUF)
                             inst.append(input_load)
-                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.depth*left_k, buf=Buf.WBUF)
-                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=left_k, N=mmunit.depth, depend=[input_load, weight_load])
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                         inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)
-                    for i in range(mmunit.depth):
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+
+            if outer_n == 1:
+                for mm in range(fit_m):
+                    for kk in range(fit_k_h):
+                        if not layer.previous_input:
+                            input_load = Inst(Op.LOAD_TILE, size=mmunit.width*mmunit.height, buf=Buf.UBUF)
+                            inst.append(input_load)
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)               
+                    if outer_m == 1:
+                        if not layer.previous_input:
+                            input_load = Inst(Op.LOAD_TILE, size=mmunit.width*left_k_h, buf=Buf.UBUF)
+                            inst.append(input_load)
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+
+            if outer_m == 1 and outer_n == 1:
+                for kk in range(fit_k_h):
+                    if not layer.previous_input:
+                        input_load = Inst(Op.LOAD_TILE, size=left_m*mmunit.height, buf=Buf.UBUF)
+                        inst.append(input_load)
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                if outer_m == 1:
+                    if not layer.previous_input:
+                        input_load = Inst(Op.LOAD_TILE, size=left_m*left_k_h, buf=Buf.UBUF)
+                        inst.append(input_load)
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)           
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)
+
+
+        # ft computation
+        # 1) W_xh_f * x_t
+        if not layer.no_hidden:
+            for mm in range(fit_m):
+                for nn in range(fit_n):
+                    # single tile for output matrix
+                    for kk in range(fit_k_in):
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[ weight_load])
+                        inst.append(gemm_op)                    
+                    if outer_m == 1:
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op) 
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+                    if layer.no_hidden:   
                         vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
                         inst.append(vect_op)
                         vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
@@ -260,77 +459,482 @@ def compile(layer: Layer, mmunit: Mmunit):
 
             if outer_m == 1:
                 for nn in range(fit_n):
-                    for kk in range(fit_k):
-                        if not layer.previous_input:
-                            input_load = Inst(Op.LOAD_TILE, size=left_m*mmunit.height, buf=Buf.UBUF)
-                            inst.append(input_load)
+                    for kk in range(fit_k_in):
                         weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                        gemm_op = Inst(Op.GEMM_OP, M=left_m, K=mmunit.height, N=mmunit.depth, depend=[input_load, weight_load])
                         inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)
                     if outer_m == 1:
-                        if not layer.previous_input:
-                            input_load = Inst(Op.LOAD_TILE, size=left_m*left_k, buf=Buf.UBUF)
-                            inst.append(input_load)
-                        weight_load = Inst(Op.LOAD_TILE, size=left_k*mmunit.depth, buf=Buf.WBUF)
-                        gemm_op = Inst(Op.GEMM_OP, M=left_m, K=left_k, N=mmunit.depth, depend=[input_load, weight_load])
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                         inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)
-                    for i in range(mmunit.depth):
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+                    if layer.no_hidden:   
                         vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                        inst.append(vect_op)
+                        vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                        inst.append(vect_op)
+
+            if outer_n == 1:
+                for mm in range(fit_m):
+                    for kk in range(fit_k_in):
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)               
+                    if outer_m == 1:
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])  
+                    if layer.no_hidden:  
+                        vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                        inst.append(vect_op)
+                        vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                        inst.append(vect_op)
+
+            if outer_m == 1 and outer_n == 1:
+                for kk in range(fit_k_in):
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+                if outer_m == 1:
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+                if layer.no_hidden:
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)           
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)           
+
+
+            # 2) W_hh_f * h_t-1 , add all
+            if not layer.no_hidden:
+                for mm in range(fit_m):
+                    for nn in range(fit_n):
+                        # single tile for output matrix
+                        for kk in range(fit_k_h):
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load)
+                            gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                            inst.append(gemm_op)                    
+                        if outer_m == 1:
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load  )
+                            gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                            inst.append(gemm_op) 
+                        store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                        vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                        inst.append(vect_op)
+                        vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                        inst.append(vect_op) 
+                        vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                        inst.append(vect_op) 
+
+                if outer_m == 1:
+                    for nn in range(fit_n):
+                        for kk in range(fit_k_h):
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load)
+                            gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                            inst.append(gemm_op)
+                        if outer_m == 1:
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load)
+                            gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                            inst.append(gemm_op)
+                        store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                        vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                        inst.append(vect_op)
+                        vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                        inst.append(vect_op)
+                        vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                        inst.append(vect_op)
+
+                if outer_n == 1:
+                    for mm in range(fit_m):
+                        for kk in range(fit_k_h):
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load)
+                            gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                            inst.append(gemm_op)               
+                        if outer_m == 1:
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load)
+                            gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                            inst.append(gemm_op)
+                        store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                        vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                        inst.append(vect_op)
+                        vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                        inst.append(vect_op)
+                        vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                        inst.append(vect_op)
+
+                if outer_m == 1 and outer_n == 1:
+                    for kk in range(fit_k_h):
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                    if outer_m == 1:
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)           
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+
+        # ot compuatation
+         # 1) W_xh_o * x_t
+        for mm in range(fit_m):
+            for nn in range(fit_n):
+                # single tile for output matrix
+                for kk in range(fit_k_in):
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[ weight_load])
+                    inst.append(gemm_op)                    
+                if outer_m == 1:
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op) 
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+                if layer.no_hidden:   
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+
+        if outer_m == 1:
+            for nn in range(fit_n):
+                for kk in range(fit_k_in):
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+                if outer_m == 1:
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+                if layer.no_hidden:   
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+
+        if outer_n == 1:
+            for mm in range(fit_m):
+                for kk in range(fit_k_in):
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)               
+                if outer_m == 1:
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])  
+                if layer.no_hidden:  
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+
+        if outer_m == 1 and outer_n == 1:
+            for kk in range(fit_k_in):
+                weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                inst.append(weight_load)
+                gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                inst.append(gemm_op)
+            if outer_m == 1:
+                weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                inst.append(weight_load)
+                gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                inst.append(gemm_op)
+            store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+            if layer.no_hidden:
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)           
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)           
+
+
+        # 2) W_hh_o * h_t-1 , add all
+        if not layer.no_hidden:
+            for mm in range(fit_m):
+                for nn in range(fit_n):
+                    # single tile for output matrix
+                    for kk in range(fit_k_h):
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)                    
+                    if outer_m == 1:
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load  )
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op) 
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op) 
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op) 
+
+            if outer_m == 1:
+                for nn in range(fit_n):
+                    for kk in range(fit_k_h):
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                    if outer_m == 1:
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
                     inst.append(vect_op)
 
             if outer_n == 1:
                 for mm in range(fit_m):
-                    for kk in range(fit_k):
-                        if not layer.previous_input:
-                            input_load = Inst(Op.LOAD_TILE, size=mmunit.width*mmunit.height, buf=Buf.UBUF)
-                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*left_n, buf=Buf.WBUF)
-                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=left_n, depend=[input_load, weight_load])
-                        inst.append(input_load)
+                    for kk in range(fit_k_h):
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                         inst.append(weight_load)
-                        inst.append(gemm_op)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)               
                     if outer_m == 1:
-                        if not layer.previous_input:
-                            input_load = Inst(Op.LOAD_TILE, size=mmunit.width*left_k, buf=Buf.UBUF)
-                            inst.append(input_load)
-                        weight_load = Inst(Op.LOAD_TILE, size=left_k*left_n, buf=Buf.WBUF)
-                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=left_k, N=left_n, depend=[input_load, weight_load])
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                         inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
 
             if outer_m == 1 and outer_n == 1:
-                for kk in range(fit_k):
-                    if not layer.previous_input:
-                        input_load = Inst(Op.LOAD_TILE, size=left_m*mmunit.height, buf=Buf.UBUF)
-                        inst.append(input_load)
-                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*left_n, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=left_m, K=mmunit.height, N=left_n, depend=[input_load, weight_load])
+                for kk in range(fit_k_h):
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                     inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                     inst.append(gemm_op)
                 if outer_m == 1:
-                    if not layer.previous_input:
-                        input_load = Inst(Op.LOAD_TILE, size=left_m*left_k, buf=Buf.UBUF)
-                        inst.append(input_load)
-                    weight_load = Inst(Op.LOAD_TILE, size=left_k*left_n, buf=Buf.WBUF)
-                    gemm_op = Inst(Op.GEMM_OP, M=left_m, K=left_k, N=left_n, depend=[input_load, weight_load])
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                     inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                     inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)           
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)
 
-
-        # it computation
-
-
-
-        # ot compuatation
-
-
-        
         # gt computation
+        # 1) W_xh_g * x_t
+        for mm in range(fit_m):
+            for nn in range(fit_n):
+                # single tile for output matrix
+                for kk in range(fit_k_in):
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[ weight_load])
+                    inst.append(gemm_op)                    
+                if outer_m == 1:
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op) 
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+                if layer.no_hidden:   
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+
+        if outer_m == 1:
+            for nn in range(fit_n):
+                for kk in range(fit_k_in):
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+                if outer_m == 1:
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+                if layer.no_hidden:   
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+
+        if outer_n == 1:
+            for mm in range(fit_m):
+                for kk in range(fit_k_in):
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)               
+                if outer_m == 1:
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])  
+                if layer.no_hidden:  
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+
+        if outer_m == 1 and outer_n == 1:
+            for kk in range(fit_k_in):
+                weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                inst.append(weight_load)
+                gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                inst.append(gemm_op)
+            if outer_m == 1:
+                weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                inst.append(weight_load)
+                gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                inst.append(gemm_op)
+            store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])
+            if layer.no_hidden:
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)           
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)           
 
 
+        # 2) W_hh_g * h_t-1 , add all
+        if not layer.no_hidden:
+            for mm in range(fit_m):
+                for nn in range(fit_n):
+                    # single tile for output matrix
+                    for kk in range(fit_k_h):
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)                    
+                    if outer_m == 1:
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load  )
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op) 
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op) 
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op) 
 
-        
+            if outer_m == 1:
+                for nn in range(fit_n):
+                    for kk in range(fit_k_h):
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                    if outer_m == 1:
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+
+            if outer_n == 1:
+                for mm in range(fit_m):
+                    for kk in range(fit_k_h):
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)               
+                    if outer_m == 1:
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
+                        gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                        inst.append(gemm_op)
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)
+
+            if outer_m == 1 and outer_n == 1:
+                for kk in range(fit_k_h):
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+                if outer_m == 1:
+                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                    inst.append(weight_load)
+                    gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
+                    inst.append(gemm_op)
+                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)           
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)
+                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                inst.append(vect_op)
+
+        # ct = ft * ct-1 + it * gt
+        for mm in range(m):
+            for kk in range(fit_k_in+1):
+                vect_op = Inst(Op.VECTOR_OP, size=mmunit.width)
+                inst.append(vect_op)
+                vect_op = Inst(Op.VECTOR_OP, size=mmunit.width)
+                inst.append(vect_op)
+                vect_op = Inst(Op.VECTOR_OP, size=mmunit.width)
+                inst.append(vect_op)
+
+        # ht = ot * tanh(ct)
+        for mm in range(m):
+            for kk in range(fit_k_in+1):
+                vect_op = Inst(Op.VECTOR_OP, size=mmunit.width)
+                inst.append(vect_op)
+                vect_op = Inst(Op.VECTOR_OP, size=mmunit.width)
+                inst.append(vect_op)
 
     return inst
         
@@ -351,8 +955,14 @@ class Inst:
         
         if depend != None:
             self.depend.extend(depend)
+        
+        if None in self.depend:
+            print("NONE INPUT FOR DEPEND")
+            input()
 
-        if inst_type == Op.LOAD_TILE:
+        if inst_type == Op.NOP:
+            self.done = True
+        elif inst_type == Op.LOAD_TILE:
             if all((size, buf)):
                 self.size = size
                 self.base = -1
@@ -392,6 +1002,7 @@ class Inst:
                 return res + "\tUBUF"
             elif self.buf == Buf.WBUF:
                 return res + "\tWBUF"
+            print(f"STR BUG: LOAD_TILE --> {self.buf}")
             return "DEBUG"
         elif self.inst_type == Op.STORE_TILE:
             res = f"STORE_TILE\t{self.size}"
@@ -399,12 +1010,14 @@ class Inst:
                 return res + "\tUBUF"
             elif self.buf == Buf.WBUF:
                 return res + "\tWBUF"
+            print(f"STR BUG: STORE_TILE --> {self.buf}")
             return "DEBUG"
         elif self.inst_type == Op.GEMM_OP:
             return f"GEMM_OP\t{self.M}\t{self.K}\t{self.N}"
         elif self.inst_type == Op.VECTOR_OP:
             return f"VECTOR_OP\t{self.size}"
 
+        print(f"STR BUG: What type? --> {self.inst_type}")
         return "DEBUG"
 
 
@@ -471,8 +1084,9 @@ class NN:
         res = f"  NNID: {self.nnid}\n"
 
         for i in self.inst:
-            res += str(i)
-            res += '\n'
+            if i.inst_type.value < 6:
+                res += str(i)
+                res += '\n'
 
         res += '\n'
 
@@ -506,6 +1120,7 @@ class NN:
         elif self.priority == 2:
             res += f"  Priority: high\n"
         
+        res += f"  Originally Dispatched: {self.dispatch_first_time}\n"
         res += f"  To be Dispatched: {self.dispatch_time}\n"
         res += f"  Estimated Time: {self.estimated}\n"
         if self.done:

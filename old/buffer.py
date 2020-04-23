@@ -29,6 +29,7 @@ class Context:
         return size
 
     def context_out(self):
+        print(f"CONTEXT OUT! NNID: {self.nnid}")
         self.context = []
 
     def recover(self):
@@ -41,7 +42,7 @@ class Context:
 
 class Buffer:
     def __init__(self, size, bandwidth, latency, name):
-        self.size = size
+        self.size = int(size)
         self.bandwidth = bandwidth
         self.latency = latency
         self.alloc_record = {}
@@ -52,19 +53,21 @@ class Buffer:
         self.context_list = {}
         self.name = name
 
+        print(f"BUFER INIT: {self.name} / {self.size} / {self.bandwidth} / {self.latency}")
+
     def check_alloc(self, base, size=0):
         start = base
-        end = base + size
+        end = base + size - 1
 
         for i in self.alloc_record:
             start_alloc = i
             end_alloc = i + self.alloc_record[i][0]
             if start < start_alloc and start_alloc < end:
-                return True
+                return False
             elif start < end_alloc and end_alloc < end:
-                return True
+                return False
 
-        return False
+        return True
 
     def alloc(self, base, size, nnid, flush=False):
         if self.check_alloc(base, size):
@@ -75,8 +78,9 @@ class Buffer:
 
     def auto_alloc(self, size, nnid, flush=False):
         # there is enough empty space
-        for i in range(self.size - size):
+        for i in range(int(self.size - size)):
             if self.alloc(i, size, nnid, flush):
+                print(f"AUTO ALLOC: BUF: {self.name}, NNID: {nnid}, ADDR: {i}, SIZE: {size}")
                 return i
 
         # there isn't enough empty space
@@ -89,7 +93,8 @@ class Buffer:
                 if self.alloc(i, size, nnid, flush):
                     success = i
                     break
-
+        
+        print(f"AUTO ALLOC: BUF: {self.name}, NNID: {nnid}, ADDR: {success}, SIZE: {size}")
         return success
 
     def force_alloc(self, addr, size, nnid, flush=False):
@@ -132,11 +137,13 @@ class Buffer:
         self.context_list[nnid].context_out()
 
     def save(self, size, nnid):
+        #print(f"DEBUG! --> BUFFER: {self.name}, SAVE: {size}")
         addr = self.auto_alloc(size, nnid, True)
         if nnid not in self.context_list:
             print(f"{self.name}: Context of {nnid} created at save")
             self.context_list[nnid] = Context(nnid)
         self.context_list[nnid].push_context(addr, size)
+        print(f"CONTEXT PUSHED! BUF: {self.name}, NNID: {nnid}, ADDR: {addr}, SIZE: {size}")
 
     def process(self, op=None, size=None, nnid=None, done=True):
         if self.processing == 0:

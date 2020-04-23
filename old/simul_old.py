@@ -6,7 +6,7 @@ from layer_compiler.layer import Layer, Container
 from layer_compiler.compiler import NN
 from unit import Mmunit, Vecunit
 from scheduler import Scheduler
-from buffer_simple import SimpleBuffer
+from buffer import Buffer
 
 KB = 1024
 MB = 1024 * 1024
@@ -27,51 +27,26 @@ def random_dispatch():
 def cmd_parse():
     parser = argparse.ArgumentParser(description='Cambricon ISA Timing Simulator')
     
-    parser.add_argument('--algo', required=False, \
-        help='Scheduling Algorithm Selection: {FCFS, RRB, HPF, TOKEN, SJF, PREMA}')
-    parser.add_argument('--mecha', required=False, \
-        help='Scheduling Mechanism Selection: {DYANAMIC, STATIC}')
+    parser.add_argument('--cfg', required=False, \
+        help='microarchitecture and latency config file')
+    parser.add_argument('--src', required=True, \
+        help='nn cambricon code file')
     
     args = parser.parse_args()
-
-    algo = None
-    mecha = None
-
-    if args.algo == None:
-        algo = Sched.PREMA
-    elif args.algo in ['FCFS', 'fcfs', 'F', 'f']:
-        algo = Sched.FCFS
-    elif args.algo in ['RRB', 'rrb', 'R', 'r']:
-        algo = Sched.RRB
-    elif args.algo in ['HPF', 'hpf', 'H', 'h']:
-        algo = Sched.HPF
-    elif args.algo in ['TOKEN', 'token', 'T', 't']:
-        algo = Sched.TOKEN
-    elif args.algo in ['SJF', 'sjf', 'S', 's']:
-        algo = Sched.SJF
     
-    if args.mecha == None:
-        mecha = Mecha.DYNAMIC
-    if args.mecha in ['STATIC', 'static', 'S', 's']:
-        mecha = Mecha.STATIC
-    elif args.mecha in ['DYNAMIC', 'dynamic', 'D', 'd']:
-        mecha = Mecha.DYNAMIC
-    
-    return algo, mecha
+    return args.cfg, args.src
 
 
 if __name__ == '__main__':
-
-    algo, mecha = cmd_parse()
 
     # computation unit and buffer
 
     MUT = Mmunit(HEIGHT, WIDTH, DEPTH)
     VUT = Vecunit(WIDTH)
 
-    UBUF = SimpleBuffer(8*MB/4, 358*GB/4, 100, 'UBUF')
-    WBUF = SimpleBuffer(4*MB/4, 358*GB/4, 100, 'WBUF')
-    ACCQ = SimpleBuffer(WIDTH*DEPTH, 358*GB/4, 0, 'ACCQ')
+    UBUF = Buffer(8*MB/4, 358*GB/4, 100, 'UBUF')
+    WBUF = Buffer(4*MB/4, 358*GB/4, 100, 'WBUF')
+    ACCQ = Buffer(WIDTH*DEPTH, 358*GB/4, 0, 'ACCQ')
     
     # random container generator
     # for sample, just all fc layer instance
@@ -145,7 +120,7 @@ if __name__ == '__main__':
     f3.close()
     f4.close()
 
-    SCHED = Scheduler(sched_mode=algo, mecha_mode=mecha)
+    SCHED = Scheduler(sched_mode=Sched.PREMA)
     SCHED.push_task(NN1)
     SCHED.push_task(NN2)
     SCHED.push_task(NN3)
@@ -196,7 +171,7 @@ if __name__ == '__main__':
                 print("  Temp: ",  str(vec_inst))
                 for i in temp_inst.depend:
                     print(type(i))
-                    print("\tDEPEND: ", i, i.done)
+                    print("\tDEPEND: ", str(i). str(i.done))
                 print("\n@@@@@@@@@@ NOTHING RUNNED! @@@@@@@@@@ \n")
                 input()
             runned_cycles = SCHED.cycle_info()
@@ -267,23 +242,15 @@ if __name__ == '__main__':
         # dispatch NN
         SCHED.dispatch()
         if SCHED.sched_check(cycle):
-            if SCHED.current != None:
-                print(f"  Before Scheduling: {SCHED.current.nnid}")
-            else:
-                print(f"  Before Scheduling: None")
             check_task = SCHED.current
             SCHED.schedule(cycle)
             checkpoint = SCHED.preempt(cycle)
             task = SCHED.current
-            if SCHED.current != None:
-                print(f"  After Scheduling: {SCHED.current.nnid}")
-            else:
-                print(f"  After Scheduling: {SCHED.current.nnid}")
 
             if check_task != None:
                 if task.nnid == check_task.nnid:
                     checkpoint = False
-                else:
+                elif check_task != None:
                     print(f"  Schedule: {check_task.nnid} ==> {task.nnid}")
                     if checkpoint:
                         print("  Mechanism: Checkpoint")
@@ -293,14 +260,6 @@ if __name__ == '__main__':
             if check_task == None:
                 checkpoint = False
                 task.running = True
-
-            if checkpoint:
-                print("  For check_task:")
-                UBUF.context_status(check_task.nnid)
-                ACCQ.context_status(check_task.nnid)
-                print("  For task:")
-                UBUF.context_status(check_task.nnid)
-                ACCQ.context_status(check_task.nnid)
 
             cycle += 1
             continue
@@ -318,19 +277,14 @@ if __name__ == '__main__':
         # fetch instruction
         if not checkpoint:
             temp_inst = task.fetch1()
-            # store_fake, nop
-            while temp_inst.inst_type == Op.NOP or temp_inst.inst_type == Op.STORE_FAKE:
-                if not temp_inst.fetchable():
-                    break
+            if temp_inst.fetchable():
+                # store fake
                 if temp_inst.inst_type == Op.STORE_FAKE:
                     if temp_inst.buf == Buf.ACCQ:
                         ACCQ.store_fake(nnid)
                     elif temp_inst.buf == Buf.UBUF:
                         UBUF.store_fake(nnid)
-                temp_inst = task.fetch1()
-
-            if temp_inst.fetchable():
-                if temp_inst.inst_type in [Op.LOAD_TILE, Op.STORE_TILE]:
+                elif temp_inst.inst_type in [Op.LOAD_TILE, Op.STORE_TILE]:
                     if buf_inst == None:
                         buf_inst = task.fetch2()
                     elif buf_inst.done:
@@ -356,11 +310,11 @@ if __name__ == '__main__':
             size = buf_inst.size
             nnid = task.nnid
             UBUF.process(op, size, nnid)
-        elif buf_inst.buf == Buf.WBUF:
+        elif buf_inst.buf == Buf.UBUF:
             op = buf_inst.inst_type
             size = buf_inst.size
             nnid = task.nnid
-            WBUF.process(op, size, nnid, True)
+            UBUF.process(op, size, nnid, True)
         
         if UBUF.processing == 0 and buf_inst != None:
             buf_inst.done = True

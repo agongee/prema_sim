@@ -35,12 +35,11 @@ class Scheduler:
 
     def preempt(self, cycle):
         if self.mecha_mode == Mecha.DYNAMIC:
-            self.preempt_dynamic(cycle)
+            return self.preempt_dynamic(cycle)
         elif self.mecha_mode == Mecha.STATIC:
-            self.preempt_static(cycle)
+            return self.preempt_static(cycle)
 
     def schedule_prema(self, cycle):
-        print("+++++SCHEDULE SCHEDULE SCHEDULE+++++")
         valid = 0
         single_task = None
         for i in self.queue:
@@ -49,7 +48,7 @@ class Scheduler:
                 single_task = i
         if valid == 1:
             self.candidate = single_task
-            print(f"+++++ SCHEDULE case 1 {self.candidate.nnid} at {cycle} +++++")
+            print(f"+++++ SCHEDULE [case 1] {self.candidate.nnid} at {cycle} +++++")
             return single_task
         elif valid == 0:
             print(f"+++++ SCHEDULE NOTHING at {cycle} +++++")
@@ -75,7 +74,7 @@ class Scheduler:
                     res = i
                     break
         self.candidate = res
-        print(f"+++++ SCHEDULE case 2 {self.candidate.nnid} at {cycle} +++++")
+        print(f"+++++ SCHEDULE [case 2] {self.candidate.nnid} at {cycle} +++++")
         return res
 
     def schedule_fcfs(self, cycle):
@@ -84,7 +83,7 @@ class Scheduler:
             if i.dispatched and not i.done:
                 if res == None:
                     res = i
-                elif i.dispatch_time_first < res.dispatch_time_first:
+                elif i.dispatch_first_time < res.dispatch_first_time:
                     res = i
         self.candidate = res
         return res
@@ -194,8 +193,10 @@ class Scheduler:
         self.current = self.candidate
         
         if degradation_current > degradation_candidate:
+            print(f"***** PREEMPT [DRAIN] at {cycle} *****")
             return False
         else:
+            print(f"***** PREEMPT [CHECKPOINT] at {cycle} *****")
             return True
 
     def preempt_static(self, cycle):
@@ -211,7 +212,7 @@ class Scheduler:
 
             if i.running:
                 i.runned += 1
-            elif i.dispatched:
+            elif i.dispatched and not i.done:
                 i.waited += 1
 
         self.elapsed += 1
@@ -226,18 +227,24 @@ class Scheduler:
             return True
         if self.new_dispatch:
             self.new_dispatch = False
-            print(f"===== SCHE_CHECH [new_dispatch] at {cycle} =====")
+            print(f"===== SCHED_CHECH [new_dispatch] at {cycle} =====")
             res = True
         if self.current.done:
-            print(f"===== SCHE_CHECH [current_done] at {cycle} =====")
+            print(f"===== SCHED_CHECH [current_done] at {cycle} =====")
             self.current = None
             res = True
         if self.elapsed == self.slice:
-            print(f"===== SCHE_CHECH [time_slice] at {cycle} =====")
+            print(f"===== SCHED_CHECH [time_slice] at {cycle} =====")
             self.elapsed = 0
             res = True
 
         return res        
+
+    def cycle_info(self):
+        res = []
+        for i in self.queue:
+            res.append(i.pc)
+        return res
 
     def str_pre(self):
         res = ""

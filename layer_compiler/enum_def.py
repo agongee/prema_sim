@@ -22,7 +22,8 @@ class Op(Enum):
     VECTOR_OP = 4
     STORE_TILE = 5
     STORE_FAKE = 6
-
+    NOP = 7
+    
 class Sched(Enum):
     FCFS = 1
     RRB = 2
