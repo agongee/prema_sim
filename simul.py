@@ -1,5 +1,6 @@
 import random
 import argparse
+from sys import exit
 
 from layer_compiler.enum_def import Type, Op, Buf, Sched, Mecha
 from layer_compiler.layer import Layer, Container
@@ -7,6 +8,9 @@ from layer_compiler.compiler import NN
 from unit import Mmunit, Vecunit
 from scheduler import Scheduler
 from buffer_simple import SimpleBuffer
+from layer_compiler.sample_task import all_init, \
+    container_cnn_alex, container_cnn_google, container_cnn_vgg, container_cnn_mobile, \
+         container_rnn_asr, container_rnn_mt, container_rnn_sa
 
 KB = 1024
 MB = 1024 * 1024
@@ -22,20 +26,23 @@ def random_priority():
     
 
 def random_dispatch():
-    return int(random.uniform(0, 80000))
+    return int(random.uniform(0, 5000000))
 
 def cmd_parse():
-    parser = argparse.ArgumentParser(description='Cambricon ISA Timing Simulator')
+    parser = argparse.ArgumentParser(description='Prema Scheduler Simulator')
     
     parser.add_argument('--algo', required=False, \
         help='Scheduling Algorithm Selection: {FCFS, RRB, HPF, TOKEN, SJF, PREMA}')
     parser.add_argument('--mecha', required=False, \
         help='Scheduling Mechanism Selection: {DYANAMIC, STATIC}')
+    parser.add_argument('--period', required=False, type=int, \
+        help='Show Procedure Periodically, if <= 0, Not Show')
     
     args = parser.parse_args()
 
     algo = None
     mecha = None
+    period = 100000
 
     if args.algo == None:
         algo = Sched.PREMA
@@ -56,13 +63,16 @@ def cmd_parse():
         mecha = Mecha.STATIC
     elif args.mecha in ['DYNAMIC', 'dynamic', 'D', 'd']:
         mecha = Mecha.DYNAMIC
+
+    if args.period != None:
+        period = args.period
     
-    return algo, mecha
+    return algo, mecha, period
 
 
 if __name__ == '__main__':
 
-    algo, mecha = cmd_parse()
+    algo, mecha, period = cmd_parse()
 
     # computation unit and buffer
 
@@ -74,76 +84,18 @@ if __name__ == '__main__':
     ACCQ = SimpleBuffer(WIDTH*DEPTH, 358*GB/4, 0, 'ACCQ')
     
     # random container generator
-    # for sample, just all fc layer instance
 
-    container_1 = Container()
-    container_2 = Container()
-    container_3 = Container()
-    container_4 = Container()
-
-    layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
-    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
-    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
-    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10, previous_input=True)
-    container_1.push_layer(layer1)
-    container_1.push_layer(layer2)
-    container_1.push_layer(layer3)
-    container_1.push_layer(layer4)
-
-    layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
-    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
-    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
-    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10, previous_input=True)
-    container_2.push_layer(layer1)
-    container_2.push_layer(layer2)
-    container_2.push_layer(layer3)
-    container_2.push_layer(layer4)
-
-    layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
-    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
-    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
-    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10, previous_input=True)
-    container_3.push_layer(layer1)
-    container_3.push_layer(layer2)
-    container_3.push_layer(layer3)
-    container_3.push_layer(layer4)
-
-    layer1 = Layer(Type.FC, batch=200, in_dim=100, out_dim=400)
-    layer2 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
-    layer3 = Layer(Type.FC, batch=200, in_dim=400, out_dim=400, previous_input=True)
-    layer4 = Layer(Type.FC, batch=200, in_dim=400, out_dim=10, previous_input=True)
-    container_4.push_layer(layer1)
-    container_4.push_layer(layer2)
-    container_4.push_layer(layer3)
-    container_4.push_layer(layer4)  
-    
-    # container to instruction and NN instance
+    all_init(4)
 
     NN1 = NN(random_priority(), 1, MUT, 0)
     NN2 = NN(random_priority(), 2, MUT, random_dispatch())
     NN3 = NN(random_priority(), 3, MUT, random_dispatch())
     NN4 = NN(random_priority(), 4, MUT, random_dispatch())
 
-    NN1.container_to_inst(container_1)
-    NN2.container_to_inst(container_2)
-    NN3.container_to_inst(container_3)
-    NN4.container_to_inst(container_4)
-
-    # NN to txt
-    f1 = open("inst/1.txt", 'w')
-    f2 = open("inst/2.txt", 'w')
-    f3 = open("inst/3.txt", 'w')
-    f4 = open("inst/4.txt", 'w')
-
-    f1.write(NN1.inst_str())
-    f2.write(NN2.inst_str())
-    f3.write(NN3.inst_str())
-    f4.write(NN4.inst_str())
-
-    f1.close()
-    f2.close()
-    f3.close()
-    f4.close()
+    NN1.container_to_inst(container_cnn_alex)
+    NN2.container_to_inst(container_cnn_alex)
+    NN3.container_to_inst(container_rnn_asr)
+    NN4.container_to_inst(container_rnn_asr)
 
     SCHED = Scheduler(sched_mode=algo, mecha_mode=mecha)
     SCHED.push_task(NN1)
@@ -174,45 +126,49 @@ if __name__ == '__main__':
     while not SCHED.check_done():
 
         debug_task = task
-
         
-        if cycle != 0 and cycle % 10000 == 0:
+        if period > 0:
+            if cycle != 0 and cycle % period == 0:
 
-            
-            print("\n===================================\n")      
+                
+                print("\n===================================\n")      
 
-            print(f"\n  Cycle = {cycle}\n")
+                print(f"\n  Cycle = {cycle}\n")
 
-            compare_cycles = SCHED.cycle_info()
-            something_runned = False
-            for i in range(len(runned_cycles)):
-                if compare_cycles[i] > runned_cycles[i]:
-                    something_runned = True
-            if not something_runned:
-                print("\n@@@@@@@@@@ NOTHING RUNNED! @@@@@@@@@@ \n")
-                print("  Buf: ", str(buf_inst), str(buf_inst.done))
-                print("  MM : ", str(mm_inst), str(buf_inst.done))
-                print("  Vec: ", str(vec_inst), str(buf_inst.done))
-                print("  Temp: ",  str(vec_inst))
-                for i in temp_inst.depend:
-                    print(type(i))
-                    print("\tDEPEND: ", i, i.done)
-                print("\n@@@@@@@@@@ NOTHING RUNNED! @@@@@@@@@@ \n")
-                input()
-            runned_cycles = SCHED.cycle_info()
+                compare_cycles = SCHED.cycle_info()
+                something_runned = False
+                for i in range(len(runned_cycles)):
+                    if compare_cycles[i] > runned_cycles[i]:
+                        something_runned = True
+                if not something_runned:
+                    print("\n@@@@@@@@@@ NOTHING RUNNED! @@@@@@@@@@ \n")
+                    print("  Buf: ", str(buf_inst), str(buf_inst.done))
+                    print("  MM : ", str(mm_inst), str(buf_inst.done))
+                    print("  Vec: ", str(vec_inst), str(buf_inst.done))
+                    print("  Temp: ",  str(vec_inst))
+                    for i in temp_inst.depend:
+                        print(type(i))
+                        print("\tDEPEND: ", i, i.done)  
+                    print("\n@@@@@@@@@@ NOTHING RUNNED! @@@@@@@@@@ \n")
+                    #input()
+                    exit(0)
+                runned_cycles = SCHED.cycle_info()
 
-            print(SCHED.str_current())
-            
-            if task == None:
-                print(f"\n  Current task = None\n")
-            else:
-                print(f"  Current task = {task.nnid}\n")
-            
-            print("  PC : ", task.pc)
-            print("  Buf: ", str(buf_inst))
-            print("  MM : ", str(mm_inst))
-            print("  Vec: ", str(vec_inst)) 
-            print("\n===================================\n")      
+                print(SCHED.str_current())
+                
+                if task == None:
+                    print(f"\n  Current task = None\n")
+                else:
+                    print(f"  Current task = {task.nnid}\n")
+                
+                print("  PC : ", task.pc)
+                print("  Buf: ", str(buf_inst))
+                print("  MM : ", str(mm_inst))
+                print("  Vec: ", str(vec_inst)) 
+                print("\n===================================\n")
+        else:
+            if cycle != 0 and cycle % 100000 == 0:
+                print(f"\n  Cycle = {cycle}\n")
 
         if checkpoint and check_task != None:
             buf_check = False
@@ -267,51 +223,48 @@ if __name__ == '__main__':
         # dispatch NN
         SCHED.dispatch()
         if SCHED.sched_check(cycle):
+            '''
             if SCHED.current != None:
                 print(f"  Before Scheduling: {SCHED.current.nnid}")
             else:
                 print(f"  Before Scheduling: None")
+            '''
             check_task = SCHED.current
             SCHED.schedule(cycle)
             checkpoint = SCHED.preempt(cycle)
             task = SCHED.current
+            '''
             if SCHED.current != None:
                 print(f"  After Scheduling: {SCHED.current.nnid}")
             else:
                 print(f"  After Scheduling: {SCHED.current.nnid}")
-
+            '''
             if check_task != None:
                 if task.nnid == check_task.nnid:
                     checkpoint = False
+                '''
                 else:
                     print(f"  Schedule: {check_task.nnid} ==> {task.nnid}")
                     if checkpoint:
                         print("  Mechanism: Checkpoint")
                     else:
                         print("  Mechanism: Drain")
+                '''
             
             if check_task == None:
                 checkpoint = False
                 task.running = True
 
             if checkpoint:
-                print("  For check_task:")
+                print(f"  For check_task [{check_task.nnid}]:")
                 UBUF.context_status(check_task.nnid)
                 ACCQ.context_status(check_task.nnid)
-                print("  For task:")
-                UBUF.context_status(check_task.nnid)
-                ACCQ.context_status(check_task.nnid)
+                print(f"  For task [{task.nnid}]:")
+                UBUF.context_status(task.nnid)
+                ACCQ.context_status(task.nnid)
 
             cycle += 1
             continue
-
-        '''
-        if task == None:
-            print("DEBUG")
-            break
-        else:
-            print(f"DEBUG: {task.nnid}")
-        '''
 
         nnid = task.nnid
 

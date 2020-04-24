@@ -48,10 +48,10 @@ class Scheduler:
                 single_task = i
         if valid == 1:
             self.candidate = single_task
-            print(f"+++++ SCHEDULE [case 1] {self.candidate.nnid} at {cycle} +++++")
+            #print(f"+++++ SCHEDULE [case 1] {self.candidate.nnid} at {cycle} +++++")
             return single_task
         elif valid == 0:
-            print(f"+++++ SCHEDULE NOTHING at {cycle} +++++")
+            #print(f"+++++ SCHEDULE NOTHING at {cycle} +++++")
             return None
         for i in self.queue:
             slowdown = i.waited / i.estimated
@@ -74,7 +74,7 @@ class Scheduler:
                     res = i
                     break
         self.candidate = res
-        print(f"+++++ SCHEDULE [case 2] {self.candidate.nnid} at {cycle} +++++")
+        #print(f"+++++ SCHEDULE [case 2] {self.candidate.nnid} at {cycle} +++++")
         return res
 
     def schedule_fcfs(self, cycle):
@@ -183,7 +183,7 @@ class Scheduler:
 
     def preempt_dynamic(self, cycle):
         if self.current == None:
-            print(f"***** PREEMPT [current_none] at {cycle} *****")
+            #print(f"***** PREEMPT [current_none] at {cycle} *****")
             self.current = self.candidate
             return True
         
@@ -193,10 +193,10 @@ class Scheduler:
         self.current = self.candidate
         
         if degradation_current > degradation_candidate:
-            print(f"***** PREEMPT [DRAIN] at {cycle} *****")
+            #print(f"***** PREEMPT [DRAIN] at {cycle} *****")
             return False
         else:
-            print(f"***** PREEMPT [CHECKPOINT] at {cycle} *****")
+            #print(f"***** PREEMPT [CHECKPOINT] at {cycle} *****")
             return True
 
     def preempt_static(self, cycle):
@@ -207,7 +207,7 @@ class Scheduler:
             pre_state = i.dispatched
             i.dispatch_nn()
             if not pre_state and i.dispatched:
-                print(f"NEW DISPATCH: NNID = {i.nnid}")
+                #print(f"NEW DISPATCH: NNID = {i.nnid}")
                 self.new_dispatch = True
 
             if i.running:
@@ -223,18 +223,18 @@ class Scheduler:
     def sched_check(self, cycle):
         res = False
         if self.current == None:
-            print(f"===== SCHED_CHECK [current_none] at {cycle} =====")
+            #print(f"===== SCHED_CHECK [current_none] at {cycle} =====")
             return True
         if self.new_dispatch:
             self.new_dispatch = False
-            print(f"===== SCHED_CHECH [new_dispatch] at {cycle} =====")
+            #print(f"===== SCHED_CHECH [new_dispatch] at {cycle} =====")
             res = True
         if self.current.done:
-            print(f"===== SCHED_CHECH [current_done] at {cycle} =====")
+            #print(f"===== SCHED_CHECH [current_done] at {cycle} =====")
             self.current = None
             res = True
         if self.elapsed == self.slice:
-            print(f"===== SCHED_CHECH [time_slice] at {cycle} =====")
+            #print(f"===== SCHED_CHECH [time_slice] at {cycle} =====")
             self.elapsed = 0
             res = True
 

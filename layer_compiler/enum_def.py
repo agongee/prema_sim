@@ -7,7 +7,7 @@ class Type(Enum):
     CONV = 4
     DEPTH = 5
     SEPAR = 6
-    RECR = 7
+    GEMM = 7
     LSTM = 8
 
 class Buf(Enum):

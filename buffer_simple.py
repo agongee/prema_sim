@@ -2,9 +2,9 @@ from layer_compiler.enum_def import Buf, Op
 
 # CONTEXT that ONLY CONSIDER SIZE (NOT ADDRESS)
 class SimpleContext:
-    def __init__(self, nnid, buf):
+    def __init__(self, nnid, buf_name):
         self.nnid = nnid
-        self.buf = buf
+        self.buf_name = buf_name
         self.size = 0
         self.to_recover = 0
 
@@ -13,9 +13,13 @@ class SimpleContext:
 
     def flush(self, size=-1):
         if size < 0:
+            print(f"{self.buf_name} FLUSH {self.size}")
             self.size = 0
         else:
             self.size = max(self.size-size, 0)
+            temp = min(size, self.size)
+            print(f"{self.buf_name} FLUSH temp")
+        
     
     def checkout_context(self, size=-1):
         if size < 0:
@@ -54,7 +58,7 @@ class SimpleBuffer:
     # LOAD_TILE
     def load(self, nnid, size):
         if nnid not in self.context_list:
-            print(f"{self.name}: Context of {nnid} created at load")
+            #print(f"{self.name}: Context of {nnid} created at load")
             self.context_list[nnid] = SimpleContext(nnid, self.name)
         self.processing = int(size/self.bandwidth) + self.latency
 
@@ -67,7 +71,7 @@ class SimpleBuffer:
     # STORE_FAKE
     def save(self, size, nnid):
         if nnid not in self.context_list:
-            print(f"{self.name}: Context of {nnid} created at load")
+            #print(f"{self.name}: Context of {nnid} created at load")
             self.context_list[nnid] = SimpleContext(nnid, self.name)
         self.context_list[nnid].push_context(size)
 
@@ -97,4 +101,7 @@ class SimpleBuffer:
             self.processing = 0
 
     def context_status(self, nnid):
-        print(f" Context Status of NNID [{nnid}] at {self.name}: {self.context_list[nnid].size}")
+        if nnid in self.context_list:
+            print(f" Context Status of NNID [{nnid}] at {self.name}: {self.context_list[nnid].size}")
+        else:
+            print(f" Context Status of NNID [{nnid}] at {self.name}: Not Created Yet")

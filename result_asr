@@ -1,0 +1,12 @@
+  Buffer UBUF Initialization
+- Size:      2097152
+- Bandwidth: 96099893248
+- Latency:   100
+  Buffer WBUF Initialization
+- Size:      1048576
+- Bandwidth: 96099893248
+- Latency:   100
+  Buffer ACCQ Initialization
+- Size:      16384
+- Bandwidth: 96099893248
+- Latency:   0
