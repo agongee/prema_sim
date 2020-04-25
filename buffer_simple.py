@@ -13,12 +13,12 @@ class SimpleContext:
 
     def flush(self, size=-1):
         if size < 0:
-            print(f"{self.buf_name} FLUSH {self.size}")
+            #print(f"{self.buf_name} FLUSH {self.size}")
             self.size = 0
         else:
             self.size = max(self.size-size, 0)
-            temp = min(size, self.size)
-            print(f"{self.buf_name} FLUSH temp")
+            #temp = min(size, self.size)
+            #print(f"{self.buf_name} FLUSH {temp}")
         
     
     def checkout_context(self, size=-1):
@@ -50,10 +50,10 @@ class SimpleBuffer:
         self.name = name
         self.context_list = {}
 
-        print(f"  Buffer {self.name} Initialization")
+        print(f"\n  Buffer {self.name} Initialization")
         print(f"- Size:      {self.size}")
         print(f"- Bandwidth: {self.bandwidth}")
-        print(f"- Latency:   {self.latency}")
+        print(f"- Latency:   {self.latency}\n")
 
     # LOAD_TILE
     def load(self, nnid, size):

@@ -1084,7 +1084,7 @@ def compile(layer: Layer, mmunit: Mmunit):
                 vect_op = Inst(Op.VECTOR_OP, size=mmunit.width)
                 inst.append(vect_op)
 
-    if layer.layer_type == Type.CONV:
+    if layer.layer_type == Type.CONV or layer.layer_type == Type.DEPTH:
         batch = layer.batch
         m = layer.im2col_m
         k = layer.im2col_k
@@ -1112,18 +1112,25 @@ def compile(layer: Layer, mmunit: Mmunit):
         #print(fit_m, fit_k, fit_n, left_m, left_k, left_n, outer_m, outer_n, mmunit.width, mmunit.height, mmunit.depth)
         #input()
 
+        weight_load = None
+        if layer.layer_type == Type.DEPTH:
+            weight_load = Inst(Op.LOAD_TILE, size=layer.kernel_dim[0]*layer.kernel_dim[1]*layer.kernel_num, buf=Buf.WBUF)
+            inst.append(weight_load)
+
         for b in range(batch):
             for mm in range(fit_m):
                 for nn in range(fit_n):
                     # single tile for output matrix
                     for kk in range(fit_k):
-                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                        inst.append(weight_load)
+                        if layer.layer_type == Type.CONV:
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load)
                         gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[ weight_load])
                         inst.append(gemm_op)                    
                     if outer_m == 1:
-                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                        inst.append(weight_load  )
+                        if layer.layer_type == Type.CONV:
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load  )
                         gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op) 
                     store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
@@ -1135,13 +1142,15 @@ def compile(layer: Layer, mmunit: Mmunit):
             if outer_m == 1:
                 for nn in range(fit_n):
                     for kk in range(fit_k):
-                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                        inst.append(weight_load)
+                        if layer.layer_type == Type.CONV:
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load)
                         gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)
                     if outer_m == 1:
-                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                        inst.append(weight_load)
+                        if layer.layer_type == Type.CONV:
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load)
                         gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)
                     store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
@@ -1153,13 +1162,15 @@ def compile(layer: Layer, mmunit: Mmunit):
             if outer_n == 1:
                 for mm in range(fit_m):
                     for kk in range(fit_k):
-                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                        inst.append(weight_load)
+                        if layer.layer_type == Type.CONV:
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load)
                         gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)               
                     if outer_m == 1:
-                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                        inst.append(weight_load)
+                        if layer.layer_type == Type.CONV:
+                            weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                            inst.append(weight_load)
                         gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)
                     store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
@@ -1170,13 +1181,15 @@ def compile(layer: Layer, mmunit: Mmunit):
 
             if outer_m == 1 and outer_n == 1:
                 for kk in range(fit_k):
-                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                    inst.append(weight_load)
+                    if layer.layer_type == Type.CONV:
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
                     gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                     inst.append(gemm_op)
                 if outer_m == 1:
-                    weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
-                    inst.append(weight_load)
+                    if layer.layer_type == Type.CONV:
+                        weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
+                        inst.append(weight_load)
                     gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                     inst.append(gemm_op)
                 store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
@@ -1186,7 +1199,7 @@ def compile(layer: Layer, mmunit: Mmunit):
                 inst.append(store_op)
 
     if layer.layer_type == Type.POOL:
-        vect_op = Inst(Op.VECTOR_OP, size=layer.in_dim[0]*layer.in_dim[1]*layer.in_dim[2]*layer.stride)
+        vect_op = Inst(Op.VECTOR_OP, size=layer.in_dim[0]*layer.in_dim[1]*layer.in_dim[2]*layer.stride*layer.batch)
         inst.append(vect_op) 
 
     return inst
@@ -1302,6 +1315,7 @@ class NN:
         self.runned = 0
         self.remaining = 0
         self.context = None
+        self.switched = 0
 
     def container_to_inst(self, container: Container):
         self.container = container
@@ -1386,6 +1400,7 @@ class NN:
         res += f"  Runned: {self.runned}\n"
         res += f"  Waited: {self.waited}\n"
         res += f"  Processing: {self.pc}/{len(self.inst)}\n"
+        res += f"  Switched: {self.switched}\n"
         res += "\n"
 
         return res

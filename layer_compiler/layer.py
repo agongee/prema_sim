@@ -70,6 +70,26 @@ class Layer:
                 self.stride = stride
             else:
                 print("Missing Argument! -- POOL")
+        elif layer_type == Type.DEPTH:
+            if all((in_dim, kernel_dim, kernel_num, stride)):
+                self.in_dim = in_dim
+                self.kernel_dim = kernel_dim
+                self.kernel_num = in_dim[2]
+                self.stride = stride
+                self.padding = padding
+                
+                channel = self.in_dim[2]
+                out = [0, 0, 0]
+                out[0] = int((self.in_dim[0] - self.kernel_dim[0] + self.padding*2 + 1) / stride) + 1
+                out[1] = int((self.in_dim[1] - self.kernel_dim[1] + self.padding*2 + 1) / stride) + 1
+                out[2] = self.in_dim[2]
+
+                self.im2col_m = self.in_dim[2]
+                self.im2col_k = (self.kernel_dim[0] * self.kernel_dim[1] * channel)
+                self.im2col_n = out[0] * out[1] * self.batch
+            else:
+                print("Missing Argument! -- CONV")
+            
 
     def estimate(self, height, width, depth, bw=358*1024*1024*1024/4):
         if self.layer_type == Type.FC :
@@ -124,6 +144,7 @@ class Container:
         self.container = []
         self.container.extend(args)
         self.estimated = 0
+        self.estimate_computed = False
         
     def push_layer(self, layer):
         self.container.append(layer)
@@ -133,9 +154,13 @@ class Container:
             i.batch = size
 
     def estimate(self, height, width, depth):
+        if self.estimate_computed:
+            return max(self.estimated, 1)
         for i in self.container:
             #print("EST in CONT: ", i)
             self.estimated += i.estimate(height, width, depth)
+
+        self.estimate_computed = True
 
         return max(self.estimated, 1)
 

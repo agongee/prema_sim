@@ -91,17 +91,29 @@ if __name__ == '__main__':
     NN2 = NN(random_priority(), 2, MUT, random_dispatch())
     NN3 = NN(random_priority(), 3, MUT, random_dispatch())
     NN4 = NN(random_priority(), 4, MUT, random_dispatch())
+    NN5 = NN(random_priority(), 5, MUT, random_dispatch())
+    NN6 = NN(random_priority(), 6, MUT, random_dispatch())
+    NN7 = NN(random_priority(), 7, MUT, random_dispatch())
+    NN8 = NN(random_priority(), 8, MUT, random_dispatch())
 
     NN1.container_to_inst(container_cnn_alex)
     NN2.container_to_inst(container_cnn_alex)
     NN3.container_to_inst(container_rnn_asr)
     NN4.container_to_inst(container_rnn_asr)
+    NN5.container_to_inst(container_cnn_vgg)
+    NN6.container_to_inst(container_cnn_vgg)
+    NN7.container_to_inst(container_cnn_google)
+    NN8.container_to_inst(container_cnn_google)
 
     SCHED = Scheduler(sched_mode=algo, mecha_mode=mecha)
     SCHED.push_task(NN1)
     SCHED.push_task(NN2)
     SCHED.push_task(NN3)
     SCHED.push_task(NN4)
+    SCHED.push_task(NN5)
+    SCHED.push_task(NN6)
+    SCHED.push_task(NN7)
+    SCHED.push_task(NN8)
 
     cycle = 0
     switch_overhead = 0
@@ -113,6 +125,7 @@ if __name__ == '__main__':
     buf_inst = None
     mm_inst = None
     vec_inst = None
+    temp_inst = None
 
     checkpoint = False
     check_task = None
@@ -146,9 +159,10 @@ if __name__ == '__main__':
                     print("  MM : ", str(mm_inst), str(buf_inst.done))
                     print("  Vec: ", str(vec_inst), str(buf_inst.done))
                     print("  Temp: ",  str(vec_inst))
-                    for i in temp_inst.depend:
-                        print(type(i))
-                        print("\tDEPEND: ", i, i.done)  
+                    if temp_inst != None:
+                        for i in temp_inst.depend:
+                            print(type(i))
+                            print("\tDEPEND: ", i, i.done)  
                     print("\n@@@@@@@@@@ NOTHING RUNNED! @@@@@@@@@@ \n")
                     #input()
                     exit(0)
@@ -232,7 +246,8 @@ if __name__ == '__main__':
             check_task = SCHED.current
             SCHED.schedule(cycle)
             checkpoint = SCHED.preempt(cycle)
-            task = SCHED.current
+            if checkpoint:
+                task = SCHED.current
             '''
             if SCHED.current != None:
                 print(f"  After Scheduling: {SCHED.current.nnid}")
@@ -242,6 +257,11 @@ if __name__ == '__main__':
             if check_task != None:
                 if task.nnid == check_task.nnid:
                     checkpoint = False
+                elif checkpoint:
+                    task.switched += 1
+            else:
+                if checkpoint:
+                    task.switched += 1
                 '''
                 else:
                     print(f"  Schedule: {check_task.nnid} ==> {task.nnid}")
