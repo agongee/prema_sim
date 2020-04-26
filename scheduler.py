@@ -179,7 +179,7 @@ class Scheduler:
                 continue
             if res == None:
                 res = i
-            elif i.dispatch_time_first < res.dispatch_time_first:
+            elif i.dispatch_first_time < res.dispatch_first_time:
                 res = i
 
         if res == None and len(self.queue) != 0:
