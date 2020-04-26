@@ -1,3 +1,5 @@
+import csv
+
 from layer_compiler.compiler import NN
 from layer_compiler.enum_def import Sched, Mecha
 
@@ -12,6 +14,13 @@ class Scheduler:
         self.elapsed = 0
         self.sched_mode = sched_mode
         self.mecha_mode = mecha_mode
+        self.preeempted = 0
+        self.preeempted_list = ["PREEMPTED"]
+        self.drained = 0
+        self.drained_list = ["DRAINED"]
+        self.scheduled_reason_list = ["SCHEDULE REASON"]
+        self.nnid_list = ["NNID"]
+        self.reason = None
     
     def push_task(self, task: NN):
         if isinstance(task, list):
@@ -29,15 +38,31 @@ class Scheduler:
         elif self.sched_mode == Sched.HPF:
             self.schedule_hpf(cycle)
         elif self.sched_mode == Sched.TOKEN:
-            self.schedule_toekn(cycle)
+            self.schedule_token(cycle)
         elif self.sched_mode == Sched.SJF:
             self.schedule_sjf(cycle)
 
     def preempt(self, cycle):
         if self.mecha_mode == Mecha.DYNAMIC:
-            return self.preempt_dynamic(cycle)
+            res = self.preempt_dynamic(cycle)
         elif self.mecha_mode == Mecha.STATIC:
-            return self.preempt_static(cycle)
+            res = self.preempt_static(cycle)
+
+        if res:
+            self.preeempted += 1
+            self.preeempted_list.append(cycle)
+            self.drained_list.append(-1)
+        else:
+            self.drained += 1
+            self.drained_list.append(cycle)
+            self.preempted_list.append(-1)
+
+        self.scheduled_reason_list.append(self.reason)
+        if self.current != None:
+            self.nnid_list.append(self.current.nnid)
+        else:
+            self.nnid_list.append(None)
+        self.reason = None
 
     def schedule_prema(self, cycle):
         valid = 0
@@ -89,10 +114,6 @@ class Scheduler:
         return res
 
     def schedule_rrb(self, cycle):
-        if not self.current.done and self.elapsed != 1:
-            self.candidate = self.current
-            return self.candidate
-
         current_nnid = -1
         res = None
 
@@ -103,21 +124,21 @@ class Scheduler:
                     break
             self.candidate = res
             return res
+
+        current_nnid = self.current.nnid
+        for i in range(current_nnid, len(self.queue)):
+            if self.queue[i].dispatched and not self.queue[i].done:
+                res = self.queue[i]
+                break
+        if res != None:
+            self.candidate = res
+            return res
         else:
-            current_nnid = self.current.nnid
-            for i in range(current_nnid+1, len(self.queue)):
+            for i in range(0, current_nnid):
                 if self.queue[i].dispatched and not self.queue[i].done:
                     res = self.queue[i]
                     break
-            if res != None:
-                self.candidate = res
-                return res
-            else:
-                for i in range(0, current_nnid+1):
-                    if self.queue[i].dispatched and not self.queue[i].done:
-                        res = self.queue[i]
-                        break
-                
+        self.candidate = res
         return res
 
     def schedule_hpf(self, cycle):
@@ -185,21 +206,40 @@ class Scheduler:
         if self.current == None:
             #print(f"***** PREEMPT [current_none] at {cycle} *****")
             self.current = self.candidate
+            self.current.switched += 1
+            if self.current != None:
+                self.current.running = True
             return True
         
         degradation_current = self.current.remaining / self.current.estimated
         degradation_candidate = self.candidate.remaining / self.candidate.estimated
-
-        self.current = self.candidate
         
         if degradation_current > degradation_candidate:
             #print(f"***** PREEMPT [DRAIN] at {cycle} *****")
             return False
         else:
             #print(f"***** PREEMPT [CHECKPOINT] at {cycle} *****")
+            if self.current != None:
+                self.current.running = False
+                if self.current.nnid != self.candidate.nnid:
+                    self.candidate.switched += 1
+            else:
+                self.candidate.switched =+ 1
+            self.current = self.candidate
+            if self.current != None:
+                self.current.running = True
             return True
 
     def preempt_static(self, cycle):
+        if self.current != None:
+            self.current.running = False
+            if self.current.nnid != self.candidate.nnid:
+                self.candidate.switched += 1
+        else:
+            self.candidate.switched =+ 1
+        self.current = self.candidate
+        if self.current != None:
+            self.current.running = True
         return True
 
     def dispatch(self):
@@ -224,21 +264,59 @@ class Scheduler:
         res = False
         if self.current == None:
             #print(f"===== SCHED_CHECK [current_none] at {cycle} =====")
+            self.reason = 'DONE'
             return True
         if self.new_dispatch:
             self.new_dispatch = False
             #print(f"===== SCHED_CHECH [new_dispatch] at {cycle} =====")
+            self.reason = 'NEW'
             res = True
         if self.current.done:
             #print(f"===== SCHED_CHECH [current_done] at {cycle} =====")
             self.current = None
+            self.reason = 'DONE'
             res = True
         if self.elapsed == self.slice:
             #print(f"===== SCHED_CHECH [time_slice] at {cycle} =====")
             self.elapsed = 0
+            self.reason = 'SLICE'
             res = True
 
         return res        
+
+    def antt(self):
+        res = 0
+        for i in self.queue:
+            i.elapsed = i.runned + i.waited
+            res += (i.elapsed / i.isolated)
+        res /= len(self.queue)
+
+        return res
+
+    def stp(self):
+        res = 0
+        for i in self.queue:
+            i.elapsed = i.runned + i.waited
+            res += (i.isolated / i.elapsed)
+
+        return res
+
+    def fariness(self):
+        pp = []
+        p_sum = 0
+        
+        for i in self.queue:
+            p_sum += i.token
+
+        for i in self.queue:
+            c_ratio = i.isolated / i.elapsed
+            p_ratio = i.token / p_sum
+            pp.append(c_ratio/p_ratio)
+
+        max_pp = max(pp)
+        min_pp = min(pp)
+
+        return min_pp / max_pp    
 
     def cycle_info(self):
         res = []
@@ -246,10 +324,77 @@ class Scheduler:
             res.append(i.pc)
         return res
 
-    def str_pre(self):
-        res = ""
+    def scheduler_info(self, filename='default'):
+        print("\n========== Scheduler Summary ==========\n")
+        print(f"  Preempted: {self.preeempted}")
+        print(f"  Drained:  {self.drained}\n")
+        
+        filename = "result/scheduler_" + filename + ".csv"
+        with open(filename, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(self.preeempted_list)
+            writer.writerow(self.drained_list)
+            writer.writerow(self.scheduled_reason_list)
+            writer.writerow(self.nnid_list)
+            writer.writerow(["Preempted", self.preeempted, "Drained", self.drained])
+
+            algo_str = None
+            mecha_str = None
+
+            if self.sched_mode == Sched.FCFS:
+                algo_str = "FCFS"
+            elif self.sched_mode == Sched.HPF:
+                algo_str = "HPF"
+            elif self.sched_mode == Sched.PREMA:
+                algo_str = "PREMA"
+            elif self.sched_mode == Sched.RRB:
+                algo_str = "RRB"
+            elif self.sched_mode == Sched.SJF:
+                algo_str = "SJF"
+            elif self.sched_mode == Sched.TOKEN:
+                algo_str = "TOKEN"
+
+            if self.mecha_mode == Mecha.DYNAMIC:
+                mecha_str = "DYNAMIC"
+            elif self.mecha_mode == Mecha.STATIC:
+                mecha_str = "STATIC"
+
+            writer.writerow(["algo_str, mecha_str"])
+
+        print("  Scheduler CSV file generated!\n")
+
+    def str_pre(self, cont=False):
+        algo_str = None
+        mecha_str = None
+
+        if self.sched_mode == Sched.FCFS:
+            algo_str = "FCFS"
+        elif self.sched_mode == Sched.HPF:
+            algo_str = "HPF"
+        elif self.sched_mode == Sched.PREMA:
+            algo_str = "PREMA"
+        elif self.sched_mode == Sched.RRB:
+            algo_str = "RRB"
+        elif self.sched_mode == Sched.SJF:
+            algo_str = "SJF"
+        elif self.sched_mode == Sched.TOKEN:
+            algo_str = "TOKEN"
+
+        if self.mecha_mode == Mecha.DYNAMIC:
+            mecha_str = "DYNAMIC"
+        elif self.mecha_mode == Mecha.STATIC:
+            mecha_str = "STATIC"
+
+        res = "  Scheduler Algorithm: "
+        res += algo_str
+        res += "\n"
+
+        res += "  Scheduler Mechanism: "
+        res += mecha_str
+        res += "\n\n"
+        
         for i in self.queue:
-            res += i.str_pre()
+            res += i.str_pre(cont)
 
         return res
 
@@ -259,3 +404,70 @@ class Scheduler:
             res += i.str_current()
 
         return res
+
+    def instance_info(self, N, filename='default'):
+        nnid = ["NNID"]
+        name = ["NET NAME"]
+        isolated = ["ISOLATED"]
+        priority = ["PRIORITY"]
+        dispatched = ["DISPATCHED"]
+        estimated = ["ESTIMATED"]
+        runned = ["RUNNED"]
+        waited = ["WAITED"]
+        elapsed = ["ELAPSED"]
+        switched = ["SWITCHED"]
+        sla = ["SLA"]
+
+        result = [nnid, name, isolated, priority, dispatched, estimated, runned, waited, elapsed, switched, sla]
+        l = len(result)
+
+        print("\n========== Instance Summary ==========\n")
+        for i in self.queue:
+            arr = i.summary(N)
+            for j in range(l):
+                result[j].append(arr[j])
+
+        a = self.antt()
+        s = self.stp()
+        f = self.fariness()
+
+        print("  ANTT:", a)
+        print("  STP:", s)
+        print("  FARINESS:", f)
+        print("\n")
+
+        filename = "result/instance_" + filename + ".csv"
+        with open(filename, 'w', newline='') as file:
+            writer = csv.writer(file)
+            for i in result:
+                writer.writerow(i)
+
+            algo_str = None
+            mecha_str = None
+
+            if self.sched_mode == Sched.FCFS:
+                algo_str = "FCFS"
+            elif self.sched_mode == Sched.HPF:
+                algo_str = "HPF"
+            elif self.sched_mode == Sched.PREMA:
+                algo_str = "PREMA"
+            elif self.sched_mode == Sched.RRB:
+                algo_str = "RRB"
+            elif self.sched_mode == Sched.SJF:
+                algo_str = "SJF"
+            elif self.sched_mode == Sched.TOKEN:
+                algo_str = "TOKEN"
+
+            if self.mecha_mode == Mecha.DYNAMIC:
+                mecha_str = "DYNAMIC"
+            elif self.mecha_mode == Mecha.STATIC:
+                mecha_str = "STATIC"
+
+            writer.writerow(["algo_str, mecha_str"])
+
+            
+
+            writer.writerow(["ANTT", a, "STP", s, "FAIRNESS", f])
+
+        print("  Instance CSV file generated!\n")
+        

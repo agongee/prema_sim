@@ -13,6 +13,8 @@ class Mmunit:
         if self.processing == 0:
             if all((m, k, n)):
                 self.compute(m, k, n)
+            else:
+                pass
         elif self.processing > 0:
             self.processing -= 1
         else:

@@ -95,6 +95,8 @@ class SimpleBuffer:
                     self.load(nnid, size)
                 elif op == Op.STORE_TILE:
                     self.store(nnid)
+            else:
+                pass
         elif self.processing > 0:
             self.processing -= 1
         else:

@@ -1,6 +1,7 @@
 import random
 import argparse
 from sys import exit
+from datetime import datetime
 
 from layer_compiler.enum_def import Type, Op, Buf, Sched, Mecha
 from layer_compiler.layer import Layer, Container
@@ -20,13 +21,37 @@ HEIGHT = 128
 WIDTH = 128
 DEPTH = 128
 
-
 def random_priority():
     return random.randint(0, 2)
     
+def random_dispatch(N):
+    return int(random.uniform(0, 500000*N))
 
-def random_dispatch():
-    return int(random.uniform(0, 5000000))
+def random_batch():
+    index = random.randint(0, 2)
+    if index == 0:
+        return 1
+    elif index == 1:
+        return 4
+    elif index == 2:
+        return 16
+
+def random_container():
+    index = random.randint(0, 6)
+    if index == 0:
+        return container_cnn_alex
+    elif index == 1:
+        return container_cnn_google
+    elif index == 2:
+        return container_cnn_mobile
+    elif index == 3:
+        return container_cnn_vgg
+    elif index == 4:
+        return container_rnn_asr
+    elif index == 5:
+        return container_rnn_mt
+    elif index == 6:
+        return container_rnn_sa
 
 def cmd_parse():
     parser = argparse.ArgumentParser(description='Prema Scheduler Simulator')
@@ -37,12 +62,18 @@ def cmd_parse():
         help='Scheduling Mechanism Selection: {DYANAMIC, STATIC}')
     parser.add_argument('--period', required=False, type=int, \
         help='Show Procedure Periodically, if <= 0, Not Show')
+    parser.add_argument('--batch', required=False, type=int, \
+        help='Batch Size (1, 4, 16 recommended)')
+    parser.add_argument('--num', required=False, type=int, \
+        help='Instance Number')
     
     args = parser.parse_args()
 
     algo = None
     mecha = None
-    period = 100000
+    period = 0
+    batch = -1
+    num = -1
 
     if args.algo == None:
         algo = Sched.PREMA
@@ -56,6 +87,8 @@ def cmd_parse():
         algo = Sched.TOKEN
     elif args.algo in ['SJF', 'sjf', 'S', 's']:
         algo = Sched.SJF
+    elif args.algo in ['PREMA', 'prema', 'P', 'p']:
+        algo = Sched.PREMA
     
     if args.mecha == None:
         mecha = Mecha.DYNAMIC
@@ -66,13 +99,22 @@ def cmd_parse():
 
     if args.period != None:
         period = args.period
+
+    if args.batch != None:
+        batch = args.batch
     
-    return algo, mecha, period
+    if args.num != None:
+        num = args.num
+    
+    return algo, mecha, period, batch, num
 
 
 if __name__ == '__main__':
 
-    algo, mecha, period = cmd_parse()
+    now = datetime.now()
+    filename = now.strftime("%Y-%m-%d_%H-%M-%S")
+
+    algo, mecha, period, B, N = cmd_parse()
 
     # computation unit and buffer
 
@@ -84,36 +126,45 @@ if __name__ == '__main__':
     ACCQ = SimpleBuffer(WIDTH*DEPTH, 358*GB/4, 0, 'ACCQ')
     
     # random container generator
+    if B < 0:
+        B = random_batch()
+    if N < 0:
+        N = random.randint(2, 8)
 
-    all_init(4)
+    algo_str = None
+    mech_str = None
 
-    NN1 = NN(random_priority(), 1, MUT, 0)
-    NN2 = NN(random_priority(), 2, MUT, random_dispatch())
-    NN3 = NN(random_priority(), 3, MUT, random_dispatch())
-    NN4 = NN(random_priority(), 4, MUT, random_dispatch())
-    NN5 = NN(random_priority(), 5, MUT, random_dispatch())
-    NN6 = NN(random_priority(), 6, MUT, random_dispatch())
-    NN7 = NN(random_priority(), 7, MUT, random_dispatch())
-    NN8 = NN(random_priority(), 8, MUT, random_dispatch())
+    if algo == Sched.FCFS:
+        algo_str = "FCFS"
+    elif algo == Sched.HPF:
+        algo_str = "HPF"
+    elif algo == Sched.PREMA:
+        algo_str = "PREMA"
+    elif algo == Sched.RRB:
+        algo_str = "RRB"
+    elif algo == Sched.SJF:
+        algo_str = "SJF"
+    elif algo == Sched.TOKEN:
+        algo_str = "TOKEN"
 
-    NN1.container_to_inst(container_cnn_alex)
-    NN2.container_to_inst(container_cnn_alex)
-    NN3.container_to_inst(container_rnn_asr)
-    NN4.container_to_inst(container_rnn_asr)
-    NN5.container_to_inst(container_cnn_vgg)
-    NN6.container_to_inst(container_cnn_vgg)
-    NN7.container_to_inst(container_cnn_google)
-    NN8.container_to_inst(container_cnn_google)
+    if mecha == Mecha.DYNAMIC:
+        mecha_str = "DYNAMIC"
+    elif mecha == Mecha.STATIC:
+        mecha_str = "STATIC"
+    
+    filename = algo_str + "_" + mecha_str + "_BATCH_" + str(B) + "_NUM_" + str(N) + "_" + filename
 
+    all_init(B, random.randint(10, 50))
     SCHED = Scheduler(sched_mode=algo, mecha_mode=mecha)
-    SCHED.push_task(NN1)
-    SCHED.push_task(NN2)
-    SCHED.push_task(NN3)
-    SCHED.push_task(NN4)
-    SCHED.push_task(NN5)
-    SCHED.push_task(NN6)
-    SCHED.push_task(NN7)
-    SCHED.push_task(NN8)
+    
+    for i in range(N):
+        if i == 0:
+            disp = 0
+        else:
+            disp = random_dispatch(N)
+        NN_temp = NN(random_priority(), i+1, MUT, 0)
+        NN_temp.container_to_inst(random_container())
+        SCHED.push_task(NN_temp)
 
     cycle = 0
     switch_overhead = 0
@@ -130,11 +181,14 @@ if __name__ == '__main__':
     checkpoint = False
     check_task = None
 
-    print("===== PREMA SIMULATION =====")
+    print("========== PREMA SIMULATION ==========\n")
     print(SCHED.str_pre())
+    print(f"  Batch Size = {B}")
+    print(f"  Instance Num = {N}\n")
 
     runned_cycles = SCHED.cycle_info()
     compare_cycles = SCHED.cycle_info()    
+
 
     while not SCHED.check_done():
 
@@ -142,11 +196,20 @@ if __name__ == '__main__':
         
         if period > 0:
             if cycle != 0 and cycle % period == 0:
-
                 
                 print("\n===================================\n")      
 
                 print(f"\n  Cycle = {cycle}\n")
+                print(SCHED.str_current())
+
+                if task == None:
+                    print(f"\n  Current task = None\n")
+                else:
+                    print(f"  Current task = {task.nnid}\n")
+                    print("  PC : ", task.pc)
+                    print("  Buf: ", str(buf_inst), str(buf_inst.done))
+                    print("  MM : ", str(mm_inst), str(buf_inst.done))
+                    print("  Vec: ", str(vec_inst), str(buf_inst.done))      
 
                 compare_cycles = SCHED.cycle_info()
                 something_runned = False
@@ -159,30 +222,23 @@ if __name__ == '__main__':
                     print("  MM : ", str(mm_inst), str(buf_inst.done))
                     print("  Vec: ", str(vec_inst), str(buf_inst.done))
                     print("  Temp: ",  str(vec_inst))
+                    print("\n")
                     if temp_inst != None:
                         for i in temp_inst.depend:
-                            print(type(i))
-                            print("\tDEPEND: ", i, i.done)  
+                            print("  DEPEND: ", i, i.done)  
                     print("\n@@@@@@@@@@ NOTHING RUNNED! @@@@@@@@@@ \n")
-                    #input()
-                    exit(0)
+                    input()
+                    #exit(0)
                 runned_cycles = SCHED.cycle_info()
 
-                print(SCHED.str_current())
-                
-                if task == None:
-                    print(f"\n  Current task = None\n")
-                else:
-                    print(f"  Current task = {task.nnid}\n")
-                
-                print("  PC : ", task.pc)
-                print("  Buf: ", str(buf_inst))
-                print("  MM : ", str(mm_inst))
-                print("  Vec: ", str(vec_inst)) 
                 print("\n===================================\n")
+
         else:
             if cycle != 0 and cycle % 100000 == 0:
-                print(f"\n  Cycle = {cycle}\n")
+                if task != None:
+                    print(f"Cycle = {cycle}, Current = {task.nnid}, PC = {task.pc}/{len(task.inst)}")
+                else:
+                    print(f"Cycle = {cycle}, Current = None")
 
         if checkpoint and check_task != None:
             buf_check = False
@@ -203,7 +259,7 @@ if __name__ == '__main__':
                 vec_check = True
             elif vec_inst.done:
                 vec_check = True
-
+            # print("CHECKOUT DOING")
             if buf_check and mm_check and vec_check:
                 checkout_delay = 0
                 recover_delay = 0
@@ -232,49 +288,39 @@ if __name__ == '__main__':
                     
                 task.running = True
                 checkpoint = False
+
+                SCHED.dispatch()
+                UBUF.process()
+                WBUF.process()
+                MUT.process()
+                VUT.process()
                 continue
     
-        # dispatch NN
-        SCHED.dispatch()
         if SCHED.sched_check(cycle):
-            '''
-            if SCHED.current != None:
-                print(f"  Before Scheduling: {SCHED.current.nnid}")
-            else:
-                print(f"  Before Scheduling: None")
-            '''
             check_task = SCHED.current
             SCHED.schedule(cycle)
             checkpoint = SCHED.preempt(cycle)
-            if checkpoint:
-                task = SCHED.current
-            '''
-            if SCHED.current != None:
-                print(f"  After Scheduling: {SCHED.current.nnid}")
-            else:
-                print(f"  After Scheduling: {SCHED.current.nnid}")
-            '''
+            task = SCHED.current
+
+            if task == None:
+                cycle += 1
+
+                SCHED.dispatch()
+                UBUF.process()
+                WBUF.process()
+                MUT.process()
+                VUT.process()
+                continue
+
+
             if check_task != None:
                 if task.nnid == check_task.nnid:
                     checkpoint = False
-                elif checkpoint:
-                    task.switched += 1
+            # check_task == None, initial state, nothing at first
             else:
-                if checkpoint:
-                    task.switched += 1
-                '''
-                else:
-                    print(f"  Schedule: {check_task.nnid} ==> {task.nnid}")
-                    if checkpoint:
-                        print("  Mechanism: Checkpoint")
-                    else:
-                        print("  Mechanism: Drain")
-                '''
-            
-            if check_task == None:
                 checkpoint = False
                 task.running = True
-
+            
             if checkpoint:
                 print(f"  For check_task [{check_task.nnid}]:")
                 UBUF.context_status(check_task.nnid)
@@ -284,7 +330,16 @@ if __name__ == '__main__':
                 ACCQ.context_status(task.nnid)
 
             cycle += 1
+
+            SCHED.dispatch()
+            UBUF.process()
+            WBUF.process()
+            MUT.process()
+            VUT.process()
             continue
+
+        # dispatch NN
+        SCHED.dispatch()
 
         nnid = task.nnid
 
@@ -294,12 +349,16 @@ if __name__ == '__main__':
             # store_fake, nop
             while temp_inst.inst_type == Op.NOP or temp_inst.inst_type == Op.STORE_FAKE:
                 if not temp_inst.fetchable():
+                    print(f"DEBUG: NOT FETCHABLE, NNID={task.nnid}")
                     break
                 if temp_inst.inst_type == Op.STORE_FAKE:
                     if temp_inst.buf == Buf.ACCQ:
                         ACCQ.store_fake(nnid)
                     elif temp_inst.buf == Buf.UBUF:
                         UBUF.store_fake(nnid)
+                print(f"\tSTORE_FAKE before cycle = {task.pc}")
+                task.fetch2()
+                print(f"\tSTORE_FAKE after cycle = {task.pc}")
                 temp_inst = task.fetch1()
 
             if temp_inst.fetchable():
@@ -319,8 +378,6 @@ if __name__ == '__main__':
                     elif vec_inst.done:
                         vec_inst = task.fetch2()
 
-                #print(temp_inst)
-
         # buffer processing
         if buf_inst == None:
             pass
@@ -336,7 +393,11 @@ if __name__ == '__main__':
             WBUF.process(op, size, nnid, True)
         
         if UBUF.processing == 0 and buf_inst != None:
-            buf_inst.done = True
+            if buf_inst.buf == Buf.UBUF:
+                buf_inst.done = True
+        if WBUF.processing == 0 and buf_inst != None:
+            if buf_inst.buf == Buf.WBUF:
+                buf_inst.done = True
 
         # mmunit processing
         if mm_inst == None:
@@ -375,4 +436,6 @@ if __name__ == '__main__':
     print(f"Cycle = {cycle}")
     print(f"Overhead = {switch_overhead}\n")
     print(SCHED.str_current())
+    SCHED.scheduler_info(filename)
+    SCHED.instance_info(N, filename)
     print("\n======================================\n")

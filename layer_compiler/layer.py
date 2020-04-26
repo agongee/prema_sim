@@ -71,7 +71,7 @@ class Layer:
             else:
                 print("Missing Argument! -- POOL")
         elif layer_type == Type.DEPTH:
-            if all((in_dim, kernel_dim, kernel_num, stride)):
+            if all((in_dim, kernel_dim, stride)):
                 self.in_dim = in_dim
                 self.kernel_dim = kernel_dim
                 self.kernel_num = in_dim[2]
@@ -88,7 +88,7 @@ class Layer:
                 self.im2col_k = (self.kernel_dim[0] * self.kernel_dim[1] * channel)
                 self.im2col_n = out[0] * out[1] * self.batch
             else:
-                print("Missing Argument! -- CONV")
+                print("Missing Argument! -- DEPTH")
             
 
     def estimate(self, height, width, depth, bw=358*1024*1024*1024/4):
@@ -106,6 +106,8 @@ class Layer:
             return self.estimate_gemm(self.im2col_m, self.im2col_k, self.im2col_n, height, width, depth, bw)
         elif self.layer_type == Type.POOL:
             return 0
+        elif self.layer_type == Type.DEPTH:
+            return self.estimate_gemm(self.im2col_m, self.im2col_k, self.im2col_n, height, width, depth, bw)
 
     def estimate_gemm(self, m, k, n, height, width, depth, bw):
         c1 = height + 2 * width + depth
@@ -137,14 +139,18 @@ class Layer:
         elif self.layer_type == Type.POOL:
             return f"POOL: In({self.in_dim}), Window({self.window_dim})"
         elif self.layer_type == Type.CONV:
-            return f"CONV: In({self.in_dim}), Kernel({self.kernel_dim}), Stride({self.stride}), Padding({self.padding}))"
-
+            return f"CONV: In({self.in_dim}), Kernel({self.kernel_dim}), Kernel_Num({self.kernel_num})Stride({self.stride}), Padding({self.padding}))"
+        elif self.layer_type == Type.DEPTH:
+            return f"DEPTH: In({self.in_dim}), Kernel({self.kernel_dim}), Stride({self.stride}), Padding({self.padding}))"
+        
 class Container:
     def __init__(self, *args):
         self.container = []
         self.container.extend(args)
         self.estimated = 0
         self.estimate_computed = False
+        self.isolated = 0
+        self.net_name = "DEFAULT"
         
     def push_layer(self, layer):
         self.container.append(layer)

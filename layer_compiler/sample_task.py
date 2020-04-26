@@ -13,12 +13,15 @@ container_rnn_asr = Container()
 container_rnn_mt = Container()
 container_rnn_sa = Container()
 
-def all_init(batch):
+def all_init(batch, length):
     four_mlp_init(batch)
-    rnn_asr_init(batch, 40)
+    rnn_asr_init(batch, length)
     cnn_alex_init(batch)
     cnn_vgg_init(batch)
     cnn_google_init(batch)
+    cnn_mobile_init(batch)
+    rnn_mt_init(batch, length)
+    rnn_sa_init(batch, length)
 
 
 # 4-layer Sample 
@@ -55,6 +58,9 @@ def cnn_alex_init(batch):
     container_cnn_alex.push_layer(pool5)
     container_cnn_alex.push_layer(fc6)
     container_cnn_alex.push_layer(fc7)
+
+    container_cnn_alex.net_name = "AlexNet"
+    container_cnn_alex.isolated = 6473174
 
 # VGG16
 # [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'], avgpool
@@ -116,6 +122,9 @@ def cnn_vgg_init(batch):
     container_cnn_vgg.push_layer(fc2)
     container_cnn_vgg.push_layer(fc3)
 
+    container_cnn_vgg.net_name = "VGG16"
+    container_cnn_vgg.isolated = 77632839
+
 # GoogLeNet
 # https://arxiv.org/pdf/1409.4842.pdf
 def cnn_google_init(batch):
@@ -152,6 +161,9 @@ def cnn_google_init(batch):
 
     fc = Layer(Type.FC, batch=batch, in_dim=1024, out_dim=1000, previous_input=True)
     container_cnn_vgg.push_layer(fc)
+
+    container_cnn_google.net_name = "GoogLeNet"
+    container_cnn_google.isolated = 11872941
 
 
 def push_inception(batch: int, in_dim: tuple, channel_dim: tuple):
@@ -249,6 +261,8 @@ def cnn_mobile_init(batch):
     container_cnn_mobile.push_layer(pool)
     container_cnn_mobile.push_layer(fc)
     
+    container_cnn_mobile.net_name = "MobileNet"
+    container_cnn_mobile.isolated = 25908806
 
 # ASR: Listen, Attend and Spell
 # https://arxiv.org/pdf/1508.01211.pdf
@@ -354,3 +368,131 @@ def rnn_asr_init(batch, length):
     container_rnn_asr.push_layer(layer1)   
     container_rnn_asr.push_layer(layer2)
 
+    container_rnn_asr.net_name = "Automatic Speech Recognition"
+    container_rnn_asr.isolated = 13464275
+
+# GNMTv2
+def rnn_mt_init(batch, length):
+    # Assumption: output = input
+    # Embedding layer is omitted
+
+    N = batch
+    Ti = length
+    To = length
+    H = 256 # hidden, for single direction, i.e. 512 total
+    D = 240 # input
+    D_HIDDEN = 1024
+
+    # encoder
+    # first layer(256, bidirectional lstm)
+    for i in range(Ti):
+        if i == 0:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=D, h_dim=H, no_hidden=True, previous_input=False)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+            layer_lstm1_bi2 = Layer(Type.LSTM, batch=N, in_dim=D, h_dim=H, no_hidden=True, previous_input=False)
+            container_rnn_mt.push_layer(layer_lstm1_bi2)
+        else:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=D, h_dim=H, no_hidden=False, previous_input=False)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+            layer_lstm1_bi2 = Layer(Type.LSTM, batch=N, in_dim=D, h_dim=H, no_hidden=False, previous_input=False)
+            container_rnn_mt.push_layer(layer_lstm1_bi2)
+    
+    # second layer
+    for i in range(Ti):
+        if i == 0:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H*2, h_dim=H, no_hidden=True, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+        else:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H*2, h_dim=H, no_hidden=False, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+    
+    # third layer
+    for i in range(Ti):
+        if i == 0:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H, h_dim=H, no_hidden=True, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+        else:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H, h_dim=H, no_hidden=False, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+
+    # fourth layer
+    for i in range(Ti):
+        if i == 0:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H, h_dim=H, no_hidden=True, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+        else:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H, h_dim=H, no_hidden=False, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+    
+    # decoder
+    for i in range(To):
+        if i == 0:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=D, h_dim=H, no_hidden=True, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+        else:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=D, h_dim=H, no_hidden=False, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+    
+    # second layer
+    for i in range(To):
+        if i == 0:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H*2, h_dim=H, no_hidden=True, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+        else:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H*2, h_dim=H, no_hidden=False, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+    
+    # third layer
+    for i in range(To):
+        if i == 0:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H*2, h_dim=H, no_hidden=True, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+        else:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H*2, h_dim=H, no_hidden=False, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+
+    # fourth layer
+    for i in range(To):
+        if i == 0:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H*2, h_dim=H, no_hidden=True, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+        else:
+            layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H*2, h_dim=H, no_hidden=False, previous_input=True)
+            container_rnn_mt.push_layer(layer_lstm1_bi1)
+
+    # attention layer
+    # Bahdanau attention
+    # https://github.com/tensorflow/nmt#background-on-the-attention-mechanism
+    # not accurate
+    for i in range(To):
+        layer_t = Layer(Type.GEMM, batch=1, gemm_m=N, gemm_k=H, gemm_n=H)
+        layer_h = Layer(Type.GEMM, batch=1, gemm_m=N, gemm_k=H, gemm_n=H)
+        container_rnn_mt.push_layer(layer_t)
+        container_rnn_mt.push_layer(layer_h)
+
+    # fc layer
+    for i in range(To):
+        fc = Layer(Type.FC, batch=N, in_dim=H, out_dim=H)
+        container_rnn_mt.push_layer(fc)
+
+    container_rnn_mt.net_name = 'Machine Translation'
+    container_rnn_mt.isolated = 10717761
+
+# Sentimental Analysis
+# https://github.com/mlperf/training/blob/master/sentiment_analysis/paddle/train.py#L48
+def rnn_sa_init(batch, length):
+    # embedding layer is omitted
+
+    N = batch
+    Ti = length
+    H = 1024
+
+    for i in range(Ti):
+        layer_lstm1_bi1 = Layer(Type.LSTM, batch=N, in_dim=H, h_dim=H, no_hidden=True, previous_input=False)
+        container_rnn_sa.push_layer(layer_lstm1_bi1)
+
+    fc = Layer(Type.FC, batch=N, in_dim=H, out_dim=H)
+    container_rnn_sa.push_layer(fc)
+    
+    container_rnn_sa.net_name = 'Sentiment Analysis'
+    container_rnn_sa.isolated = 4489906

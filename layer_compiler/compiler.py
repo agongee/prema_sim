@@ -1132,12 +1132,13 @@ def compile(layer: Layer, mmunit: Mmunit):
                             weight_load = Inst(Op.LOAD_TILE, size=mmunit.height*mmunit.depth, buf=Buf.WBUF)
                             inst.append(weight_load  )
                         gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
-                        inst.append(gemm_op) 
-                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
-                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
-                    inst.append(vect_op) 
-                    store_op = Inst(Op.STORE_TILE, size=mmunit.width*mmunit.depth, buf=Buf.UBUF, depend=[vect_op])
-                    inst.append(store_op)
+                        inst.append(gemm_op)
+                    if fit_k != 0 or outer_m == 1: 
+                        store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                        vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                        inst.append(vect_op) 
+                        store_op = Inst(Op.STORE_TILE, size=mmunit.width*mmunit.depth, buf=Buf.UBUF, depend=[vect_op])
+                        inst.append(store_op)
 
             if outer_m == 1:
                 for nn in range(fit_n):
@@ -1153,11 +1154,12 @@ def compile(layer: Layer, mmunit: Mmunit):
                             inst.append(weight_load)
                         gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)
-                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
-                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
-                    inst.append(vect_op)
-                    store_op = Inst(Op.STORE_TILE, size=left_m*mmunit.depth, buf=Buf.UBUF, depend=[vect_op])
-                    inst.append(store_op)
+                    if fit_k != 0 or outer_m == 1: 
+                        store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                        vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                        inst.append(vect_op)
+                        store_op = Inst(Op.STORE_TILE, size=left_m*mmunit.depth, buf=Buf.UBUF, depend=[vect_op])
+                        inst.append(store_op)
 
             if outer_n == 1:
                 for mm in range(fit_m):
@@ -1173,11 +1175,12 @@ def compile(layer: Layer, mmunit: Mmunit):
                             inst.append(weight_load)
                         gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                         inst.append(gemm_op)
-                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
-                    vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
-                    inst.append(vect_op)
-                    store_op = Inst(Op.STORE_TILE, size=left_n*mmunit.width, buf=Buf.UBUF, depend=[vect_op])
-                    inst.append(store_op)
+                    if fit_k != 0 or outer_m == 1: 
+                        store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                        vect_op = Inst(Op.VECTOR_OP, size=mmunit.width, depend=[gemm_op])
+                        inst.append(vect_op)
+                        store_op = Inst(Op.STORE_TILE, size=left_n*mmunit.width, buf=Buf.UBUF, depend=[vect_op])
+                        inst.append(store_op)
 
             if outer_m == 1 and outer_n == 1:
                 for kk in range(fit_k):
@@ -1192,11 +1195,12 @@ def compile(layer: Layer, mmunit: Mmunit):
                         inst.append(weight_load)
                     gemm_op = Inst(Op.GEMM_OP, M=mmunit.width, K=mmunit.height, N=mmunit.depth, depend=[weight_load])
                     inst.append(gemm_op)
-                store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
-                vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
-                inst.append(vect_op)           
-                store_op = Inst(Op.STORE_TILE, size=left_m*left_n, buf=Buf.UBUF, depend=[vect_op])
-                inst.append(store_op)
+                if fit_k != 0 or outer_m == 1: 
+                    store_fake = Inst(Op.STORE_FAKE, buf=Buf.ACCQ, depend=[gemm_op])    
+                    vect_op = Inst(Op.VECTOR_OP, size=left_m, depend=[gemm_op])
+                    inst.append(vect_op)           
+                    store_op = Inst(Op.STORE_TILE, size=left_m*left_n, buf=Buf.UBUF, depend=[vect_op])
+                    inst.append(store_op)
 
     if layer.layer_type == Type.POOL:
         vect_op = Inst(Op.VECTOR_OP, size=layer.in_dim[0]*layer.in_dim[1]*layer.in_dim[2]*layer.stride*layer.batch)
@@ -1313,9 +1317,12 @@ class NN:
         self.estimated = 0
         self.waited = 0
         self.runned = 0
+        self.elapsed = 0
         self.remaining = 0
         self.context = None
         self.switched = 0
+        self.isolated = 0
+        self.net_name = None
 
     def container_to_inst(self, container: Container):
         self.container = container
@@ -1325,6 +1332,8 @@ class NN:
         self.estimated = self.container.estimate(self.mmunit.height, self.mmunit.width, self.mmunit.depth)
         # print(f"ESTIMAGED: {self.nnid} -> {self.estimated}")
         #input()
+        self.isolated = container.isolated
+        self.net_name = container.net_name
 
     def fetch1(self):
         return self.inst[self.pc]
@@ -1360,8 +1369,9 @@ class NN:
 
         return res
 
-    def str_pre(self):
+    def str_pre(self, cont):
         res = f"  NNID: {self.nnid}\n"
+        res += f"  Net Name: {self.net_name}\n"
 
         if self.priority == 0:
             res += f"  Priority: low\n"
@@ -1372,14 +1382,19 @@ class NN:
 
         res += f"  To be Dispatched: {self.dispatch_time}\n"
         res += f"  Estimated: {self.estimated}\n"
-        res += "  Container Information:\n"
-        res += str(self.container)
+        
+        if cont:
+            res += "  Container Information:\n"
+            res += str(self.container)
         res += "\n"
 
         return res
 
     def str_current(self):
         res = f"  NNID: {self.nnid}\n"
+
+        res += f"  Net Name: {self.net_name}\n"
+        res += f"  Isolated: {self.isolated}\n"
 
         if self.priority == 0:
             res += f"  Priority: low\n"
@@ -1395,15 +1410,56 @@ class NN:
             res += "  Done\n"
         elif self.running:
             res += f"  Running\n"
+        elif self.dispatched:
+            res += f"  Waitng\n"
         else:
-            res += f"  Wating\n"
+            res += f"  Not Dispatched\n"
         res += f"  Runned: {self.runned}\n"
         res += f"  Waited: {self.waited}\n"
+        self.elapsed = self.runned + self.waited
+        res += f"  Elapsed: {self.elapsed}\n"
         res += f"  Processing: {self.pc}/{len(self.inst)}\n"
         res += f"  Switched: {self.switched}\n"
         res += "\n"
 
         return res
+
+    def summary(self, N):
+
+        self.elapsed = self.runned + self.waited
+
+        sla = self.elapsed < (self.isolated * N)
+
+        arr = [self.nnid, self.net_name, self.isolated, self.priority, self.dispatch_first_time, \
+            self.estimated, self.runned, self.waited, self.elapsed, self.switched, sla]
+
+        res = f"  NNID: {self.nnid}\n"
+
+        res += f"  Net Name: {self.net_name}\n"
+        res += f"  Isolated: {self.isolated}\n"
+
+        if self.priority == 0:
+            res += f"  Priority: low\n"
+        elif self.priority == 1:
+            res += f"  Priority: medium\n"
+        elif self.priority == 2:
+            res += f"  Priority: high\n"
+        
+        res += f"  Originally Dispatched: {self.dispatch_first_time}\n"
+        res += f"  Estimated Time: {self.estimated}\n"
+
+        res += f"  Runned: {self.runned}\n"
+        res += f"  Waited: {self.waited}\n"
+        self.elapsed = self.runned + self.waited
+        res += f"  Elapsed: {self.elapsed}\n"
+        res += f"  Switched: {self.switched}\n"
+        res += f"  SLA: {sla}"
+        res += "\n"
+
+        print(res)
+
+        return arr
+
 
     
     def __bool__(self):
