@@ -463,7 +463,7 @@ class Scheduler:
             elif self.mecha_mode == Mecha.STATIC:
                 mecha_str = "STATIC"
 
-            writer.writerow(["algo_str, mecha_str"])
+            writer.writerow([algo_str, mecha_str])
 
             
 
