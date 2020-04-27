@@ -162,7 +162,7 @@ if __name__ == '__main__':
             disp = 0
         else:
             disp = random_dispatch(N)
-        NN_temp = NN(random_priority(), i+1, MUT, 0)
+        NN_temp = NN(random_priority(), i+1, MUT, disp)
         NN_temp.container_to_inst(random_container())
         SCHED.push_task(NN_temp)
 

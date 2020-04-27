@@ -14,7 +14,7 @@ You can determine following options:
 
 For default simulation:
 
-```python
+```
 python simul.py
 ```
 
@@ -32,7 +32,7 @@ Default setting is:
 
 To simulate manually, you can set some arguments:
 
-```python
+```
 python simul.py --algo FCFS --mecha DYNAMIC --period 1000000 --batch 4 --num 8
 ```
 
