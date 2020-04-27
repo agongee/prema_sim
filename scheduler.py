@@ -206,7 +206,8 @@ class Scheduler:
         if self.current == None:
             #print(f"***** PREEMPT [current_none] at {cycle} *****")
             self.current = self.candidate
-            self.current.switched += 1
+            if self.current != None:
+                self.current.switched += 1
             if self.current != None:
                 self.current.running = True
             return True
