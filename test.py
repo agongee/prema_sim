@@ -51,51 +51,65 @@ with open("summary.csv", 'w', newline='') as file:
 
 df = pd.read_csv("summary.csv")
 row = df.shape[0]
-antt = [0] * 12
-stp = [0] * 12
-fairness = [0] * 12
-num = [0] * 12
+antt = [0] * 8
+stp = [0] * 8
+fairness = [0] * 8
+num = [0] * 8
 for i in range(row):
       ser = df.iloc[i]
       algo_num = 0
-      if ser['Algorithm'] == 'FCFS':
+      if ser['Algorithm'] == 'HPF':
             algo_num = 0
-      elif ser['Algorithm'] == 'RRB':
-            algo_num = 1
-      elif ser['Algorithm'] == 'HPF':
-            algo_num = 2
       elif ser['Algorithm'] == 'SJF':
-            algo_num = 3
+            algo_num = 1
       elif ser['Algorithm'] == 'TOKEN':
-            algo_num = 4
+            algo_num = 2
       elif ser['Algorithm'] == 'PREMA':
-            algo_num = 5
+            algo_num = 3
+      else:
+            continue
 
       mecha_num = 0
       if ser['Mechanism'] == 'STATIC':
             mecha_num = 1
       
-      index = algo_num + mecha_num * 6
+      index = algo_num + mecha_num * 4
       
       antt[index] += ser['ANTT']
       stp[index] += ser['STP']
       fairness[index] += ser['Fairness']
       num[index] += 1
 
-for i in range(12):
-      antt[i] /= num[i]
-      stp[i] /= num[i]
-      fairness[i] /= num[i]
+for i in range(8):
+      if num[i] == 0:
+            continue
+      else:
+            antt[i] /= num[i]
+            stp[i] /= num[i]
+            fairness[i] /= num[i]
 
-index = ['FCFS', 'RRB', 'HPF', 'SJF', 'TOKEN', 'PREMA', 'FCFS_S', 'RRB_S', 'HPF_S', 'SJF_S', 'TOKEN_S', 'PREMA_S']
+index = ['HPF', 'SJF', 'TOKEN', 'PREMA',  'HPF', 'SJF', 'TOKEN', 'PREMA']
 
-plt.subplot(3, 1, 1)
-plt.bar(index, antt)
+plt.subplot(2, 3, 1)
+plt.bar(index[0:4], antt[0:4])
 plt.title('ANTT')
-plt.subplot(3, 1, 2)
-plt.bar(index, stp)
-plt.title('STP')
-plt.subplot(3, 1, 3)
-plt.bar(index, fairness)
+plt.subplot(2, 3, 2)
+plt.bar(index[0:4], fairness[0:4])
 plt.title('Fairness')
+plt.subplot(2, 3, 3)
+plt.bar(index[0:4], stp[0:4])
+plt.title('STP')
+
+plt.subplot(2, 3, 4)
+plt.bar(index[4:], antt[4:])
+plt.title('ANTT(Static)')
+plt.subplot(2, 3, 5)
+plt.bar(index[4:], fairness[4:])
+plt.title('Fairness(Static)')
+plt.subplot(2, 3, 6)
+plt.bar(index[4:], stp[4:])
+plt.title('STP(Static)')
+
+plt.rc('font', size=20)
+
 plt.show()

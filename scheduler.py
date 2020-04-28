@@ -4,7 +4,7 @@ from layer_compiler.compiler import NN
 from layer_compiler.enum_def import Sched, Mecha
 
 class Scheduler:
-    def __init__(self, slice=175000, sched_mode=Sched.PREMA, mecha_mode=Mecha.DYNAMIC):
+    def __init__(self, slice=175000, sched_mode=Sched.PREMA, mecha_mode=Mecha.DYNAMIC, isolated_mode=0):
         self.queue = []
         self.threshold = 3
         self.current = None
@@ -14,6 +14,7 @@ class Scheduler:
         self.elapsed = 0
         self.sched_mode = sched_mode
         self.mecha_mode = mecha_mode
+        self.isolated_mode = isolated_mode
         self.preeempted = 0
         self.preeempted_list = ["PREEMPTED"]
         self.drained = 0
@@ -30,7 +31,10 @@ class Scheduler:
 
     def schedule(self, cycle):
         if self.sched_mode == Sched.PREMA:
-            self.schedule_prema(cycle)
+            if self.isolated_mode > 0:
+                self.schedule_prema_isolated(cycle)
+            else:
+                self.schedule_prema(cycle)
         elif self.sched_mode == Sched.FCFS:
             self.schedule_fcfs(cycle)
         elif self.sched_mode == Sched.RRB:
@@ -38,13 +42,23 @@ class Scheduler:
         elif self.sched_mode == Sched.HPF:
             self.schedule_hpf(cycle)
         elif self.sched_mode == Sched.TOKEN:
-            self.schedule_token(cycle)
+            if self.isolated_mode > 0:
+                self.schedule_token_isolated(cycle)
+            else:
+                self.schedule_token(cycle)
         elif self.sched_mode == Sched.SJF:
-            self.schedule_sjf(cycle)
+            if self.isolated_mode > 0:
+                self.schedule_sjf_isolated(cycle)
+            else:
+                self.schedule_sjf(cycle)
 
     def preempt(self, cycle):
         if self.mecha_mode == Mecha.DYNAMIC:
-            res = self.preempt_dynamic(cycle)
+            if self.isolated_mode > 0:
+                res = self.preempt_dynamic_isolated(cycle)
+            else:
+                res = self.preempt_dynamic(cycle)
+            
         elif self.mecha_mode == Mecha.STATIC:
             res = self.preempt_static(cycle)
 
@@ -92,6 +106,44 @@ class Scheduler:
                 res = i
                 continue
             if i.estimated < res.estimated:
+                res = i
+        if res == None and len(self.queue) != 0:
+            for i in self.queue:
+                if i.dispatched and not i.done:
+                    res = i
+                    break
+        self.candidate = res
+        #print(f"+++++ SCHEDULE [case 2] {self.candidate.nnid} at {cycle} +++++")
+        return res
+
+    def schedule_prema_isolated(self, cycle):
+        valid = 0
+        single_task = None
+        for i in self.queue:
+            if i.dispatched and not i.done:
+                valid += 1
+                single_task = i
+        if valid == 1:
+            self.candidate = single_task
+            #print(f"+++++ SCHEDULE [case 1] {self.candidate.nnid} at {cycle} +++++")
+            return single_task
+        elif valid == 0:
+            #print(f"+++++ SCHEDULE NOTHING at {cycle} +++++")
+            return None
+        for i in self.queue:
+            slowdown = i.waited / i.isolated
+            i.token += i.priority * slowdown
+
+        res = None
+        for i in self.queue:
+            if not i.dispatched or i.done:
+                continue
+            if i.token <= self.threshold:
+                continue
+            if res == None:
+                res = i
+                continue
+            if i.isolated < res.isolated:
                 res = i
         if res == None and len(self.queue) != 0:
             for i in self.queue:
@@ -191,6 +243,42 @@ class Scheduler:
         self.candidate = res
         return res
 
+    def schedule_token_isolated(self, cycle):
+        valid = 0
+        single_task = None
+        for i in self.queue:
+            if i.dispatched and not i.done:
+                valid += 1
+                single_task = i
+        if valid == 1:
+            self.candidate = single_task
+            return single_task
+        elif valid == 0:
+            return None
+        for i in self.queue:
+            slowdown = i.waited / i.isolated
+            i.token += i.priority * slowdown
+
+        res = None
+        for i in self.queue:
+            if not i.dispatched or i.done:
+                continue
+            if i.token <= self.threshold:
+                continue
+            if res == None:
+                res = i
+            elif i.dispatch_first_time < res.dispatch_first_time:
+                res = i
+
+        if res == None and len(self.queue) != 0:
+            for i in self.queue:
+                if i.dispatched and not i.done:
+                    res = i
+                    break
+
+        self.candidate = res
+        return res
+
     def schedule_sjf(self, cycle):
         res = None
         for i in self.queue:
@@ -201,6 +289,18 @@ class Scheduler:
                     res = i
         self.candidate = res
         return res
+    
+    def schedule_sjf_isolated(self, cycle):
+        res = None
+        for i in self.queue:
+            if i.dispatched and not i.done:
+                if res == None:
+                    res = i
+                elif i.isolated < res.isolated:
+                    res = i
+        self.candidate = res
+        return res
+
 
     def preempt_dynamic(self, cycle):
         if self.current == None:
@@ -214,6 +314,35 @@ class Scheduler:
         
         degradation_current = self.current.remaining / self.current.estimated
         degradation_candidate = self.candidate.remaining / self.candidate.estimated
+        
+        if degradation_current > degradation_candidate:
+            #print(f"***** PREEMPT [DRAIN] at {cycle} *****")
+            return False
+        else:
+            #print(f"***** PREEMPT [CHECKPOINT] at {cycle} *****")
+            if self.current != None:
+                self.current.running = False
+                if self.current.nnid != self.candidate.nnid:
+                    self.candidate.switched += 1
+            else:
+                self.candidate.switched =+ 1
+            self.current = self.candidate
+            if self.current != None:
+                self.current.running = True
+            return True
+    
+    def preempt_dynamic_isolated(self, cycle):
+        if self.current == None:
+            #print(f"***** PREEMPT [current_none] at {cycle} *****")
+            self.current = self.candidate
+            if self.current != None:
+                self.current.switched += 1
+            if self.current != None:
+                self.current.running = True
+            return True
+        
+        degradation_current = self.current.remaining / self.current.isolated
+        degradation_candidate = self.candidate.remaining / self.candidate.isolated
         
         if degradation_current > degradation_candidate:
             #print(f"***** PREEMPT [DRAIN] at {cycle} *****")
@@ -302,7 +431,7 @@ class Scheduler:
 
         return res
 
-    def fariness(self):
+    def fairness(self):
         pp = []
         p_sum = 0
         
@@ -392,7 +521,13 @@ class Scheduler:
 
         res += "  Scheduler Mechanism: "
         res += mecha_str
-        res += "\n\n"
+        res += "\n"
+
+        if self.isolated_mode > 0:
+            res += "  Isolated Mode\n"
+        else:
+            res += "  Estimated Mode\n"
+        res += "\n"
         
         for i in self.queue:
             res += i.str_pre(cont)
@@ -430,11 +565,11 @@ class Scheduler:
 
         a = self.antt()
         s = self.stp()
-        f = self.fariness()
+        f = self.fairness()
 
         print("  ANTT:", a)
         print("  STP:", s)
-        print("  FARINESS:", f)
+        print("  FAIRNESS:", f)
         print("\n")
 
         filename = "result/instance_" + filename + ".csv"

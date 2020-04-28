@@ -52,6 +52,10 @@ Each arguments corresponds to:
 
 When the simulation is finished, you can find two csv file in result folder. One shows the scheduling log and one shows the instance information.
 
+## Test
+
+Using run.sh and run_static.sh you can simulate over every scheduling algorithms. Using csv files from the test, you can run test.py to derive ANTT, STP, Fairness graph.
+
 ## Instruction Wrapper
 
 For the sake of simplicity, I made a wrapper for the ISA which is supported by the accelerator.  ISA used in this simulation is equal to the paper, but since paper didn't provide precise ISA there might be some difference between the one the paper used and the one this simulator used.

@@ -66,6 +66,8 @@ def cmd_parse():
         help='Batch Size (1, 4, 16 recommended)')
     parser.add_argument('--num', required=False, type=int, \
         help='Instance Number')
+    parser.add_argument('--isolated', required=False, type=int, \
+        help='Schedule by Isolated Time Instead of Estimated Time')
     
     args = parser.parse_args()
 
@@ -74,6 +76,7 @@ def cmd_parse():
     period = 0
     batch = -1
     num = -1
+    isol = 0
 
     if args.algo == None:
         algo = Sched.PREMA
@@ -105,8 +108,11 @@ def cmd_parse():
     
     if args.num != None:
         num = args.num
+
+    if args.isolated != None:
+        isol = args.isolated
     
-    return algo, mecha, period, batch, num
+    return algo, mecha, period, batch, num, isol
 
 
 if __name__ == '__main__':
@@ -114,7 +120,7 @@ if __name__ == '__main__':
     now = datetime.now()
     filename = now.strftime("%Y-%m-%d_%H-%M-%S")
 
-    algo, mecha, period, B, N = cmd_parse()
+    algo, mecha, period, B, N, isol = cmd_parse()
 
     # computation unit and buffer
 
@@ -155,7 +161,7 @@ if __name__ == '__main__':
     filename = algo_str + "_" + mecha_str + "_BATCH_" + str(B) + "_NUM_" + str(N) + "_" + filename
 
     all_init(B, random.randint(10, 50))
-    SCHED = Scheduler(sched_mode=algo, mecha_mode=mecha)
+    SCHED = Scheduler(sched_mode=algo, mecha_mode=mecha, isolated_mode=isol)
     
     for i in range(N):
         if i == 0:

@@ -64,9 +64,12 @@ class SimpleBuffer:
 
     # STORE_TILE
     def store(self, nnid, size=-1):
+        if nnid not in self.context_list:
+            #print(f"{self.name}: Context of {nnid} created at load")
+            self.context_list[nnid] = SimpleContext(nnid, self.name)
         size = self.context_list[nnid].size
         self.processing = int(size/self.bandwidth) + self.latency
-        self.context_list[nnid].flush()
+        #self.context_list[nnid].flush()
 
     # STORE_FAKE
     def save(self, size, nnid):
@@ -77,16 +80,19 @@ class SimpleBuffer:
 
     def checkout(self, nnid):
         size = self.context_list[nnid].checkout_context()
+        print(f"!!!!!!!!!!! CHECKOUT CALLED : {size}")
         return int(size/self.bandwidth) + self.latency
             
     def recover(self, nnid):
         if nnid not in self.context_list:
             return 0
         size = self.context_list[nnid].recover_context()
+        print(f"??????????? RECOVER CALLED : {size}")
         return int(size/self.bandwidth) + self.latency
 
     def store_fake(self, nnid):
-        self.context_list[nnid].flush()
+        #self.context_list[nnid].flush()
+        pass
 
     def process(self, op=None, size=None, nnid=None, done=True):
         if self.processing == 0:
