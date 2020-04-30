@@ -69,7 +69,7 @@ class SimpleBuffer:
             self.context_list[nnid] = SimpleContext(nnid, self.name)
         size = self.context_list[nnid].size
         self.processing = int(size/self.bandwidth) + self.latency
-        #self.context_list[nnid].flush()
+        self.context_list[nnid].flush()
 
     # STORE_FAKE
     def save(self, size, nnid):
@@ -91,8 +91,7 @@ class SimpleBuffer:
         return int(size/self.bandwidth) + self.latency
 
     def store_fake(self, nnid):
-        #self.context_list[nnid].flush()
-        pass
+        self.context_list[nnid].flush()
 
     def process(self, op=None, size=None, nnid=None, done=True):
         if self.processing == 0:

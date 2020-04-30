@@ -70,19 +70,31 @@ for name in instance_list:
 
 for i in run_dict:
     for j in run_dict[i]:
-        run_dict[i][j] = min(run_dict[i][j])
+        run_dict[i][j] = max(run_dict[i][j])
 
 index = 1
 
+run_dict_re = {'Isolated':[], 'HPF':[], 'SJF':[], 'TOKEN':[], 'PREMA':[]}
 for i in run_dict:
-    plt.subplot(4, 2, index)
-    plt.bar(range(len(run_dict[i])), list(run_dict[i].values()))
-    plt.xticks(range(len(run_dict[i])), list(run_dict[i].keys()))
-    plt.title(i)
-    index += 1
+    for j in run_dict[i]:
+        run_dict_re[j].append(run_dict[i][j])
 
-plt.tight_layout ()
-plt.show()
+barwidth = 0.1
+r_isol = list(range(len(run_dict_re['Isolated'])))
+r_hpf = [x + barwidth for x in r_isol]
+r_sjf = [x + barwidth for x in r_hpf]
+r_token = [x + barwidth for x in r_sjf]
+r_prema = [x + barwidth for x in r_token]
+
+plt.bar(r_isol, run_dict_re['Isolated'], width=barwidth, label='Isolated')
+plt.bar(r_hpf, run_dict_re['HPF'],  width=barwidth, label='HPF')
+plt.bar(r_sjf, run_dict_re['SJF'],  width=barwidth, label='SJF')
+plt.bar(r_token, run_dict_re['TOKEN'],  width=barwidth, label='TOKEN')
+plt.bar(r_prema, run_dict_re['PREMA'],  width=barwidth, label='PREMA')
+
+plt.xticks(r_sjf, ['Alex', 'VGG', 'GoogLe', 'Mobile', 'ASR', 'MT', 'SA'])
+plt.legend(loc=1, bbox_to_anchor=(1.1, 1.05))
+plt.show()   
         
 
 

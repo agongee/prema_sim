@@ -149,7 +149,7 @@ class Container:
         self.container.extend(args)
         self.estimated = 0
         self.estimate_computed = False
-        self.isolated = 0
+        self.isolated = {}
         self.net_name = "DEFAULT"
         
     def push_layer(self, layer):

@@ -68,6 +68,8 @@ def cmd_parse():
         help='Instance Number')
     parser.add_argument('--isolated', required=False, type=int, \
         help='Schedule by Isolated Time Instead of Estimated Time')
+    parser.add_argument('--single', required=False, \
+        help='Run Single Instnace')
     
     args = parser.parse_args()
 
@@ -111,8 +113,8 @@ def cmd_parse():
 
     if args.isolated != None:
         isol = args.isolated
-    
-    return algo, mecha, period, batch, num, isol
+
+    return algo, mecha, period, batch, num, isol, args.single
 
 
 if __name__ == '__main__':
@@ -120,7 +122,7 @@ if __name__ == '__main__':
     now = datetime.now()
     filename = now.strftime("%Y-%m-%d_%H-%M-%S")
 
-    algo, mecha, period, B, N, isol = cmd_parse()
+    algo, mecha, period, B, N, isol, single = cmd_parse()
 
     # computation unit and buffer
 
@@ -160,17 +162,52 @@ if __name__ == '__main__':
     
     filename = algo_str + "_" + mecha_str + "_BATCH_" + str(B) + "_NUM_" + str(N) + "_" + filename
 
-    all_init(B, random.randint(10, 50))
+    if single != None:
+        filename = single + "_" + str(B)
+        algo = Sched.FCFS
+        mecha = Mecha.STATIC
+
+
+    all_init(B, 40)
     SCHED = Scheduler(sched_mode=algo, mecha_mode=mecha, isolated_mode=isol)
-    
-    for i in range(N):
-        if i == 0:
-            disp = 0
-        else:
-            disp = random_dispatch(N)
-        NN_temp = NN(random_priority(), i+1, MUT, disp)
-        NN_temp.container_to_inst(random_container())
+
+    if single == 'alex':
+        NN_temp = NN(random_priority(), 1, MUT, 0)
+        NN_temp.container_to_inst(container_cnn_alex, B)
         SCHED.push_task(NN_temp)
+    elif single == 'mobile':
+        NN_temp = NN(random_priority(), 1, MUT, 0)
+        NN_temp.container_to_inst(container_cnn_mobile, B)
+        SCHED.push_task(NN_temp)
+    elif single == 'google':
+        NN_temp = NN(random_priority(), 1, MUT, 0)
+        NN_temp.container_to_inst(container_cnn_google, B)
+        SCHED.push_task(NN_temp)
+    elif single == 'vgg':
+        NN_temp = NN(random_priority(), 1, MUT, 0)
+        NN_temp.container_to_inst(container_cnn_vgg, B)
+        SCHED.push_task(NN_temp)
+    elif single == 'asr':
+        NN_temp = NN(random_priority(), 1, MUT, 0)
+        NN_temp.container_to_inst(container_rnn_asr, B)
+        SCHED.push_task(NN_temp)
+    elif single == 'mt':
+        NN_temp = NN(random_priority(), 1, MUT, 0)
+        NN_temp.container_to_inst(container_rnn_mt, B)
+        SCHED.push_task(NN_temp)
+    elif single == 'sa':
+        NN_temp = NN(random_priority(), 1, MUT, 0)
+        NN_temp.container_to_inst(container_rnn_sa, B)
+        SCHED.push_task(NN_temp)
+    else:
+        for i in range(N):
+            if i == 0:
+                disp = 0
+            else:
+                disp = random_dispatch(N)
+            NN_temp = NN(random_priority(), i+1, MUT, disp)
+            NN_temp.container_to_inst(random_container(), B)
+            SCHED.push_task(NN_temp)
 
     cycle = 0
     switch_overhead = 0
@@ -190,7 +227,10 @@ if __name__ == '__main__':
     print("========== PREMA SIMULATION ==========\n")
     print(SCHED.str_pre())
     print(f"  Batch Size = {B}")
-    print(f"  Instance Num = {N}\n")
+    if single != None:
+        print(f"  Instance = {single}\n")
+    else:
+        print(f"  Instance Num = {N}\n")
 
     runned_cycles = SCHED.cycle_info()
     compare_cycles = SCHED.cycle_info()    

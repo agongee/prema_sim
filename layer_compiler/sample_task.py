@@ -60,7 +60,9 @@ def cnn_alex_init(batch):
     container_cnn_alex.push_layer(fc7)
 
     container_cnn_alex.net_name = "AlexNet"
-    container_cnn_alex.isolated = 6473174
+    container_cnn_alex.isolated[1] = 1697722
+    container_cnn_alex.isolated[4] = 6473754
+
 
 # VGG16
 # [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'], avgpool
@@ -123,8 +125,9 @@ def cnn_vgg_init(batch):
     container_cnn_vgg.push_layer(fc3)
 
     container_cnn_vgg.net_name = "VGG16"
-    container_cnn_vgg.isolated = 77632839
-
+    container_cnn_vgg.isolated[1] = 6150050
+    container_cnn_vgg.isolated[4] = 77632498
+ 
 # GoogLeNet
 # https://arxiv.org/pdf/1409.4842.pdf
 def cnn_google_init(batch):
@@ -163,7 +166,8 @@ def cnn_google_init(batch):
     container_cnn_vgg.push_layer(fc)
 
     container_cnn_google.net_name = "GoogLeNet"
-    container_cnn_google.isolated = 11872941
+    container_cnn_google.isolated[1] = 813951
+    container_cnn_google.isolated[4] = 11873594
 
 
 def push_inception(batch: int, in_dim: tuple, channel_dim: tuple):
@@ -262,7 +266,8 @@ def cnn_mobile_init(batch):
     container_cnn_mobile.push_layer(fc)
     
     container_cnn_mobile.net_name = "MobileNet"
-    container_cnn_mobile.isolated = 25908806
+    container_cnn_mobile.isolated[1] = 1867013
+    container_cnn_mobile.isolated[4] = 25908758
 
 # ASR: Listen, Attend and Spell
 # https://arxiv.org/pdf/1508.01211.pdf
@@ -369,7 +374,8 @@ def rnn_asr_init(batch, length):
     container_rnn_asr.push_layer(layer2)
 
     container_rnn_asr.net_name = "Automatic Speech Recognition"
-    container_rnn_asr.isolated = 13464275
+    container_rnn_asr.isolated[1] = 13440293
+    container_rnn_asr.isolated[4] = 13464404
 
 # GNMTv2
 def rnn_mt_init(batch, length):
@@ -476,7 +482,8 @@ def rnn_mt_init(batch, length):
         container_rnn_mt.push_layer(fc)
 
     container_rnn_mt.net_name = 'Machine Translation'
-    container_rnn_mt.isolated = 10717761
+    container_rnn_mt.isolated[1] = 9911366
+    container_rnn_mt.isolated[4] = 9911366
 
 # Sentimental Analysis
 # https://github.com/mlperf/training/blob/master/sentiment_analysis/paddle/train.py#L48
@@ -495,4 +502,5 @@ def rnn_sa_init(batch, length):
     container_rnn_sa.push_layer(fc)
     
     container_rnn_sa.net_name = 'Sentiment Analysis'
-    container_rnn_sa.isolated = 4489906
+    container_rnn_sa.isolated[1] = 4469462
+    container_rnn_sa.isolated[4] = 4489981

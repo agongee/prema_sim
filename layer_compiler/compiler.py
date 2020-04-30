@@ -1324,7 +1324,7 @@ class NN:
         self.isolated = 0
         self.net_name = None
 
-    def container_to_inst(self, container: Container):
+    def container_to_inst(self, container: Container, batch: int):
         self.container = container
         for i in container.container:
             #print(i)
@@ -1332,7 +1332,7 @@ class NN:
         self.estimated = self.container.estimate(self.mmunit.height, self.mmunit.width, self.mmunit.depth)
         # print(f"ESTIMAGED: {self.nnid} -> {self.estimated}")
         #input()
-        self.isolated = container.isolated
+        self.isolated = container.isolated[batch]
         self.net_name = container.net_name
 
     def fetch1(self):
