@@ -1,3 +1,6 @@
+from layer_compiler.enum_def import Buf, Op
+
+
 class Context:
     def __init__(self, nnid):
         self.nnid = nnid
